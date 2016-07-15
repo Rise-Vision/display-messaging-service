@@ -5,15 +5,9 @@ var latency = require("primus-spark-latency");
 var http = require("http");
 var fs = require("fs");
 var argv = require("yargs")
-  .default({ address: "localhost", port: 3000, workers: 6 })
+  .default({address: "localhost", insecureListenerPort: 3000, workers: 6, trustedSenderPort: 3001})
   .argv;
 var server = http.createServer();
-var displayServers = {};
-var displaysById = {};
-var displaysBySpark = {};
-var pendingMessages = {};
-var pendingTasks = {};
-var displayIdsByWorker = {};
 var stats = {
   clients: 0,
   newClients: 0,
@@ -27,6 +21,7 @@ var stats = {
 
 if(cluster.isMaster) {
   var numWorkers = argv.workers;
+  var displayIdsByWorker = {};
 
   console.log("Master cluster setting up " + numWorkers + " workers...");
 
@@ -40,14 +35,6 @@ if(cluster.isMaster) {
     }
     else if(message.disconnection) {
       delete displayIdsByWorker[worker.id][message.disconnection.displayId];
-    }
-    else if(message.msg) {
-      let workers = Object.keys(displayIdsByWorker);
-      let workerId = workers.find((workerId)=>{
-        return displayIdsByWorker[workerId][message.msg.displayId];
-      }) || workers[Math.floor(Math.random() * workers.length)];
-
-      cluster.workers[workerId].send(message);
     }
     else if(message.stats) {
       stats.clients += (message.stats.newClients - message.stats.disconnectedClients);
@@ -77,9 +64,14 @@ if(cluster.isMaster) {
   });
 
   startStats();
+  registerSenderEvents(startPrimus());
+  startServer(argv.trustedSenderPort);
 }
 else {
-  registerPrimusEventListeners(startPrimus());
+  var displaysById = {};
+  var displaysBySpark = {};
+
+  registerListenerEvents(startPrimus());
   startStats();
   startServer();
 }
@@ -93,7 +85,24 @@ function startPrimus() {
   return primus;
 }
 
-function registerPrimusEventListeners(primus) {
+function registerSenderEvents(primus) {
+  primus.on("connection", function(spark) {
+    spark.on("data", function(data) {
+      let workers = Object.keys(displayIdsByWorker);
+      let workerId = workers.find((workerId)=>{
+        return displayIdsByWorker[workerId][data.displayId];
+      });
+
+      if (!workerId) {
+        return spark.write({msg: "presence-not-detected", displayId: data.displayId});
+      }
+
+      return spark.write({msg: "presence-detected", displayId: data.displayId});
+    });
+  });
+}
+
+function registerListenerEvents(primus) {
   process.on("message", (message)=>{
     if(message.msg) {
       let data = message.msg;
@@ -101,58 +110,34 @@ function registerPrimusEventListeners(primus) {
       if(displaysById[data.displayId]) {
         stats.sentMessages++;
         displaysById[data.displayId].send("message", data.message);
+      } else {
+        console.error(`Worker received ${data} for an id it does not handle`);
       }
     }
   });
 
   primus.on("connection", function(spark) {
     spark.on("end", function() {
-      if(displayServers[spark.id]) {
-        delete displayServers[spark.id];
-      }
-      else if(displaysBySpark[spark.id]) {
-        stats.clients--;
-        stats.disconnectedClients++;
+      stats.clients--;
+      stats.disconnectedClients++;
 
-        var displayId = displaysBySpark[spark.id];
+      var displayId = displaysBySpark[spark.id];
 
-        delete displaysById[displayId];
-        delete displaysBySpark[spark.id];
-        process.send({ disconnection: { displayId: displayId }});
-      }
-      else {
-        stats.unknownDisconnectedClients++;
-      }
+      delete displaysById[displayId];
+      delete displaysBySpark[spark.id];
+      process.send({ disconnection: { displayId: displayId }});
     });
 
-    spark.on("end", function() {
-      stats.newErrors++;
-    });
+    spark.on("data", function (data) {
+      if (!data.displayId) {return spark.send("expected an id");}
 
-    spark.on("server-init", function () {
-      displayServers[spark.id] = spark;
-    });
-
-    spark.on("display-init", function (data) {
-      if(data.displayId) {
+      if (data.msg === "register-display-id") {
         stats.clients++;
         stats.newClients++;
         displaysById[data.displayId] = spark;
         displaysBySpark[spark.id] = data.displayId;
 
         process.send({ connection: { displayId: data.displayId }});
-      }
-    });
-
-    spark.on("presence-request", function(data) {
-      if(data.displayId) {
-        if(displaysById[data.displayId]) {
-          stats.sentMessages++;
-          displaysById[data.displayId].send("presence-request");
-        }
-        else {
-          process.send({msg: "presence-request", displayId: data.displayId});
-        }
       }
     });
   });
@@ -187,36 +172,8 @@ function startStats() {
   }, cluster.isMaster ? 5000 : 1000);
 }
 
-function processPendingMessages(displayId) {
-  if(pendingMessages[displayId] && pendingMessages[displayId].length > 0) {
-    var messages = pendingMessages[displayId].splice(0, pendingMessages[displayId].length);
-
-    return saveGCSMessages(displayId, messages, 3);
-  }
-}
-
-function runNextTask(displayId) {
-  if(pendingTasks[displayId] && pendingTasks[displayId].length > 0) {
-    var task = pendingTasks[displayId].shift();
-
-    return Promise.resolve()
-    .then(task)
-    .catch((err)=>{
-      console.log("Error running task", err);
-    })
-    .then(()=>{
-      if(pendingTasks[displayId].length === 0) {
-        delete pendingTasks[displayId];
-      }
-      else {
-        return runNextTask(displayId);
-      }
-    });
-  }
-}
-
-function startServer() {
-  server.listen(argv.port, argv.address, function() {
+function startServer(port = argv.insecureListenerPort) {
+  server.listen(port, argv.address, function() {
     console.log("Running on http://" + server.address().address + ":" + server.address().port);
   });
 }

@@ -3,7 +3,7 @@ fork = require("child_process").fork,
 wsClient = require("./ws-client.js");
 
 describe("Presence", function() {
-  this.timeout(9000);
+  this.timeout(2000);
   let server;
 
   beforeEach("start server", ()=>{
@@ -14,26 +14,38 @@ describe("Presence", function() {
     server.kill();
   });
 
-  it("responds to a presence check", ()=>{
+  it("responds to a presence check for a connected display", ()=>{
     let fakeDisplay = wsClient.createClient("http://localhost:3000");
-    let fakeServer = wsClient.createClient("http://localhost:3000");
-    let displayId = "12345";
+    let fakeSender = wsClient.createClient("http://localhost:3001"),
+    displayId = "12345";
 
     fakeDisplay.on("open", ()=>{
       console.log("Display connection opened");
-      fakeDisplay.send("display-init", {displayId});
-      fakeServer.send("presence-request", {displayId});
-    });
-
-    fakeServer.on("open", ()=>{
-      fakeServer.send("server-init", {});
+      fakeDisplay.write({msg: "register-display-id", displayId});
+      fakeSender.write({msg: "presence-request", displayId});
     });
 
     return new Promise((res)=>{
-      fakeDisplay.on("presence-request", function(data) {
-        console.log("Presence check received");
-        res();
+      fakeSender.on("data", function(data) {
+        if (data.msg === "presence-detected") {
+          fakeDisplay.end();
+          fakeSender.end();
+          res();
+        }
       });
+    });
+  });
+
+  it("responds to a presence check for a disconnected display", ()=>{
+    let fakeSender = wsClient.createClient("http://localhost:3001"),
+    displayId = "12345";
+
+    return new Promise((res)=>{
+      fakeSender.on("data", function(data) {
+        if (data.msg === "presence-not-detected") {res();}
+      });
+
+      fakeSender.write({msg: "presence-request", displayId});
     });
   });
 });
