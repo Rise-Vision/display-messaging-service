@@ -8,7 +8,6 @@ var argv = require("yargs")
   .default({ address: "localhost", port: 3000, workers: 6 })
   .argv;
 var server = http.createServer();
-var storage = require("./storage.js");
 var displayServers = {};
 var displaysById = {};
 var displaysBySpark = {};
@@ -21,7 +20,6 @@ var stats = {
   disconnectedClients: 0,
   unknownDisconnectedClients: 0,
   newErrors: 0,
-  newGCSErrors: 0,
   sentMessages: 0,
   savedMessagesSent: 0,
   savedMessages: 0
@@ -44,7 +42,6 @@ if(cluster.isMaster) {
       delete displayIdsByWorker[worker.id][message.disconnection.displayId];
     }
     else if(message.msg) {
-      // Select the worker connected to the displayId or, if none is, a random one which will store the message in GCS
       let workers = Object.keys(displayIdsByWorker);
       let workerId = workers.find((workerId)=>{
         return displayIdsByWorker[workerId][message.msg.displayId];
@@ -58,7 +55,6 @@ if(cluster.isMaster) {
       stats.disconnectedClients += message.stats.disconnectedClients;
       stats.unknownDisconnectedClients += message.stats.unknownDisconnectedClients;
       stats.newErrors += message.stats.newErrors;
-      stats.newGCSErrors += message.stats.newGCSErrors;
       stats.sentMessages += message.stats.sentMessages;
       stats.savedMessagesSent += message.stats.savedMessagesSent;
       stats.savedMessages += message.stats.savedMessages;
@@ -83,14 +79,9 @@ if(cluster.isMaster) {
   startStats();
 }
 else {
-  return storage.init()
-  .then(startPrimus)
-  .then(registerPrimusEventListeners)
-  .then(startStats)
-  .then(startServer)
-  .catch((err)=>{
-    console.log(err);
-  });
+  registerPrimusEventListeners(startPrimus());
+  startStats();
+  startServer();
 }
 
 function startPrimus() {
@@ -110,10 +101,6 @@ function registerPrimusEventListeners(primus) {
       if(displaysById[data.displayId]) {
         stats.sentMessages++;
         displaysById[data.displayId].send("message", data.message);
-      }
-      else {
-        stats.savedMessages++;
-        appendGCSMessage(data.displayId, data.message);
       }
     }
   });
@@ -154,18 +141,17 @@ function registerPrimusEventListeners(primus) {
         displaysBySpark[spark.id] = data.displayId;
 
         process.send({ connection: { displayId: data.displayId }});
-        enqueueTask(data.displayId, sendSavedMessages.bind(null, data.displayId, 3));
       }
     });
 
-    spark.on("server-message", function(data) {
+    spark.on("presence-request", function(data) {
       if(data.displayId) {
         if(displaysById[data.displayId]) {
           stats.sentMessages++;
-          displaysById[data.displayId].send("message", data.message);
+          displaysById[data.displayId].send("presence-request");
         }
         else {
-          process.send({ msg: data });
+          process.send({msg: "presence-request", displayId: data.displayId});
         }
       }
     });
@@ -201,87 +187,11 @@ function startStats() {
   }, cluster.isMaster ? 5000 : 1000);
 }
 
-function appendGCSMessage(displayId, message) {
-  if(pendingMessages[displayId]) {
-    pendingMessages[displayId].push(message);
-  }
-  else {
-    pendingMessages[displayId] = [message];
-  }
-
-  enqueueTask(displayId, processPendingMessages.bind(null, displayId));
-}
-
 function processPendingMessages(displayId) {
   if(pendingMessages[displayId] && pendingMessages[displayId].length > 0) {
     var messages = pendingMessages[displayId].splice(0, pendingMessages[displayId].length);
 
     return saveGCSMessages(displayId, messages, 3);
-  }
-}
-
-function sendSavedMessages(displayId, retries) {
-  var fileName = displayId + ".json";
-
-  return storage.readFile(fileName, true)
-  .then((contents)=>{
-    return contents.trim() ? JSON.parse(contents) : [];
-  })
-  .then((messages)=>{
-    if(displaysById[displayId]) {
-      var spark = displaysById[displayId];
-
-      messages.forEach((message)=>{
-        stats.savedMessagesSent++;
-        spark.send("message", message);
-      });
-
-      return storage.deleteFile(fileName, true);
-    }
-  })
-  .catch((err)=>{
-    stats.newGCSErrors++;
-
-    if(--retries > 0) {
-      enqueueTask(displayId, sendSavedMessages.bind(null, displayId, retries));
-    }
-    else {
-      console.log("Error loading messages", displayId, err);
-    }
-  });
-}
-
-function saveGCSMessages(displayId, newMessages, retries) {
-  var fileName = displayId + ".json";
-
-  return storage.readFile(fileName, true)
-  .then((contents)=>{
-    var json = contents.trim() ? JSON.parse(contents) : [];
-
-    var messages = Array.isArray(json) ? json : [];
-    messages = messages.concat(newMessages);
-
-    return storage.saveFile(fileName, JSON.stringify(messages));
-  })
-  .catch((err)=>{
-    stats.newGCSErrors++;
-
-    if(--retries > 0) {
-      return saveGCSMessages(displayId, newMessages, retries);
-    }
-    else {
-      console.log("Error saving messages", displayId, err, newMessages);
-    }
-  });
-}
-
-function enqueueTask(displayId, task) {
-  if(pendingTasks[displayId]) {
-    pendingTasks[displayId].push(task);
-  }
-  else {
-    pendingTasks[displayId] = [task];
-    return runNextTask(displayId);
   }
 }
 
