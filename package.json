@@ -12,5 +12,8 @@
     "ws": "1.1.1",
     "uws": "0.4.x",
     "yargs": "4.7.1"
+  },
+  "scripts": {
+    "integration": "npm install && mocha test/integration/presence.js"
   }
 }
