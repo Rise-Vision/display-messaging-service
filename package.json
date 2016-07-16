@@ -11,7 +11,8 @@
     "primus-spark-latency": "0.1.1",
     "ws": "1.1.1",
     "uws": "0.4.x",
-    "yargs": "4.7.1"
+    "yargs": "4.7.1",
+    "chokidar": "1.6.0"
   },
   "scripts": {
     "integration": "npm install && mocha test/integration/presence.js"

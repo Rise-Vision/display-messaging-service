@@ -1,9 +1,11 @@
+const reloadableServer = "./reloadable-server.js";
+
 var cluster = require("cluster");
 var Primus = require("primus");
 var emitter = require("primus-emitter");
 var latency = require("primus-spark-latency");
+var chokidar = require("chokidar");
 var http = require("http");
-var fs = require("fs");
 var argv = require("yargs")
   .default({address: "localhost", insecureListenerPort: 3000, workers: 6, trustedSenderPort: 3001})
   .argv;
@@ -22,6 +24,7 @@ var stats = {
 if(cluster.isMaster) {
   var numWorkers = argv.workers;
   var displayIdsByWorker = {};
+  var processState = { stats: stats, displayIdsByWorker: displayIdsByWorker };
 
   console.log("Master cluster setting up " + numWorkers + " workers...");
 
@@ -30,22 +33,7 @@ if(cluster.isMaster) {
   }
 
   cluster.on("message", (worker, message)=>{
-    if(message.connection) {
-      displayIdsByWorker[worker.id][message.connection.displayId] = true;
-    }
-    else if(message.disconnection) {
-      delete displayIdsByWorker[worker.id][message.disconnection.displayId];
-    }
-    else if(message.stats) {
-      stats.clients += (message.stats.newClients - message.stats.disconnectedClients);
-      stats.newClients += message.stats.newClients;
-      stats.disconnectedClients += message.stats.disconnectedClients;
-      stats.unknownDisconnectedClients += message.stats.unknownDisconnectedClients;
-      stats.newErrors += message.stats.newErrors;
-      stats.sentMessages += message.stats.sentMessages;
-      stats.savedMessagesSent += message.stats.savedMessagesSent;
-      stats.savedMessages += message.stats.savedMessages;
-    }
+    require(reloadableServer).masterClusterMessage(worker, message, processState);
   });
 
   cluster.on("online", function(worker) {
@@ -63,16 +51,19 @@ if(cluster.isMaster) {
     console.log("Starting a new worker " + newWorker.process.pid);
   });
 
-  startStats();
+  startHotCodeReload();
+  startStats(processState);
   registerSenderEvents(startPrimus());
   startServer(argv.trustedSenderPort);
 }
 else {
   var displaysById = {};
   var displaysBySpark = {};
+  var processState = { stats: stats, displaysById: displaysById, displaysBySpark: displaysBySpark };
 
+  startHotCodeReload();
   registerListenerEvents(startPrimus());
-  startStats();
+  startStats(processState);
   startServer();
 }
 
@@ -143,37 +134,29 @@ function registerListenerEvents(primus) {
   });
 }
 
-function startStats() {
+function startStats(processState) {
   setInterval(function () {
-    if(cluster.isMaster) {
-      var currStats = [
-        Date.now(), stats.clients, stats.newClients, stats.disconnectedClients, stats.unknownDisconnectedClients,
-        stats.newErrors, stats.newGCSErrors, stats.sentMessages, stats.savedMessagesSent, stats.savedMessages
-      ].join(",");
-
-      console.log(JSON.stringify(stats));
-
-      fs.appendFile("stats.csv", currStats + "\n", function (err) {
-        if(err) { console.log("Error saving stats", err); }
-      });
-    }
-    else {
-      process.send({ stats: stats });
-    }
-
-    stats.newClients = 0;
-    stats.disconnectedClients = 0;
-    stats.unknownDisconnectedClients = 0;
-    stats.newErrors = 0;
-    stats.newGCSErrors = 0;
-    stats.sentMessages = 0;
-    stats.savedMessagesSent = 0;
-    stats.savedMessages = 0;
+    require(reloadableServer).updateStats(processState);
   }, cluster.isMaster ? 5000 : 1000);
 }
 
 function startServer(port = argv.insecureListenerPort) {
   server.listen(port, argv.address, function() {
     console.log("Running on http://" + server.address().address + ":" + server.address().port);
+  });
+}
+
+function startHotCodeReload() {
+  var watcher = chokidar.watch("*.js", {
+    ignored: /node_modules|\.git/,
+    persistent: true
+  });
+  watcher.on("ready", () => {
+    watcher.on("all", () => {
+      console.log("Clearing module cache from server");
+      Object.keys(require.cache).forEach((file) => {
+        delete require.cache[file];
+      });
+    });
   });
 }
