@@ -64,7 +64,13 @@ if(cluster.isMaster) {
   });
 
   startStats();
-  registerSenderEvents(startPrimus());
+  registerSenderEvents(startPrimus((req, done)=>{
+    if (req.query.serverkey !== "ABC") {
+      return done(new Error("Invalid serverkey"));
+    }
+
+    return done();
+  }));
   startServer(argv.trustedSenderPort);
 }
 else {
@@ -76,11 +82,13 @@ else {
   startServer();
 }
 
-function startPrimus() {
+function startPrimus(authFn) {
   var primus = new Primus(server, { transformer: "uws", use_clock_offset: true, iknowclusterwillbreakconnections: true });
 
   primus.use("emitter", emitter);
   primus.use("spark-latency", latency);
+
+  if (authFn) {primus.authorize(authFn);}
 
   return primus;
 }
