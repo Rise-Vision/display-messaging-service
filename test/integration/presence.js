@@ -16,7 +16,7 @@ describe("Presence", function() {
 
   it("responds to a presence check for a connected display", ()=>{
     let fakeDisplay = wsClient.createClient("http://localhost:3000");
-    let fakeSender = wsClient.createClient("http://localhost:3001"),
+    let fakeSender = wsClient.createClient("http://localhost:3001/?serverkey=ABC"),
     displayId = "12345";
 
     fakeDisplay.on("open", ()=>{
@@ -37,7 +37,7 @@ describe("Presence", function() {
   });
 
   it("responds to a presence check for a disconnected display", ()=>{
-    let fakeSender = wsClient.createClient("http://localhost:3001"),
+    let fakeSender = wsClient.createClient("http://localhost:3001/?serverkey=ABC"),
     displayId = "12345";
 
     return new Promise((res)=>{
