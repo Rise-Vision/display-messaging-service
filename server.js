@@ -96,34 +96,39 @@ function startPrimus(authFn) {
 function registerSenderEvents(primus) {
   primus.on("connection", function(spark) {
     spark.on("data", function(data) {
+      if (!data.displayId) {return spark.write({"error": "expected an id"});}
+
       let workers = Object.keys(displayIdsByWorker);
       let workerId = workers.find((workerId)=>{
         return displayIdsByWorker[workerId][data.displayId];
       });
 
-      if (!workerId) {
-        return spark.write({msg: "presence-not-detected", displayId: data.displayId});
+      if (data.msg === "presence-request") {
+        if (!workerId) {
+          return spark.write({msg: "presence-not-detected", displayId: data.displayId});
+        }
+
+        return spark.write({msg: "presence-detected", displayId: data.displayId});
       }
 
-      return spark.write({msg: "presence-detected", displayId: data.displayId});
+      if (data.msg === "screenshot-request") {
+        if (!workerId) {
+          return spark.write({error: "display not connected", displayId: data.displayId});
+        }
+
+        return cluster.workers[workerId].send(data);
+      }
+    });
+
+    cluster.on("message", (worker, message)=>{
+      if (message.msg === "screenshot-saved") {
+        spark.write(message);
+      }
     });
   });
 }
 
 function registerListenerEvents(primus) {
-  process.on("message", (message)=>{
-    if(message.msg) {
-      let data = message.msg;
-
-      if(displaysById[data.displayId]) {
-        stats.sentMessages++;
-        displaysById[data.displayId].send("message", data.message);
-      } else {
-        console.error(`Worker received ${data} for an id it does not handle`);
-      }
-    }
-  });
-
   primus.on("connection", function(spark) {
     spark.on("end", function() {
       stats.clients--;
@@ -137,7 +142,7 @@ function registerListenerEvents(primus) {
     });
 
     spark.on("data", function (data) {
-      if (!data.displayId) {return spark.send("expected an id");}
+      if (!data.displayId) {return spark.write({error: "expected an id"});}
 
       if (data.msg === "register-display-id") {
         stats.clients++;
@@ -146,6 +151,21 @@ function registerListenerEvents(primus) {
         displaysBySpark[spark.id] = data.displayId;
 
         process.send({ connection: { displayId: data.displayId }});
+      }
+
+      if (data.msg === "screenshot-saved") {
+        process.send(data);
+      }
+    });
+
+    process.on("message", (message)=>{
+      if (!displaysById[message.displayId]) {
+        return console.error(`Worker received ${message} for an id it does not handle`);
+      }
+
+      if (message.msg === "screenshot-request") {
+        stats.sentMessages++;
+        displaysById[message.displayId].write(message);
       }
     });
   });

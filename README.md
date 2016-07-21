@@ -7,14 +7,26 @@ Registration
 ``` js
 {"register-display-id", displayId}
 ```
+Screenshot request
+``` js
+{"msg" "screenshot-request", displayId, filename}
+{"msg": "screenshot-saved", displayId, filename}
+```
 
 #### Sender
 
 Presence request
 ``` js
-{"presence-request", displayId}
+{"msg": "presence-request", displayId}
 {"msg": "presence-detected", displayId}
 {"msg": "presence-not-detected", displayId}
+```
+
+Screenshot request
+``` js
+{"msg" "screenshot-request", displayId, filename}
+{"error": "display not connected", displayId}
+{"msg": "screenshot-saved", displayId, filename}
 ```
 
 ## Sender Auth
