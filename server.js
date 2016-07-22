@@ -4,6 +4,7 @@ var Primus = require("primus");
 var emitter = require("primus-emitter");
 var latency = require("primus-spark-latency");
 var http = require("http");
+var https = require("https");
 var fs = require("fs");
 var cpuCount = require("os").cpus().length
 var argv = require("yargs")
@@ -12,10 +13,15 @@ var argv = require("yargs")
     insecureListenerPort: 3000,
     workers: cpuCount,
     trustedSenderPort: 3001,
+    nossl: false,
     serverkey: require("process").env.SERVERKEY || String(Math.random())
   })
   .argv;
-var server = http.createServer();
+var server = argv.nossl ? http.createServer() : https.createServer({
+  key: fs.readFileSync("server.key"),
+  cert: fs.readFileSync("server.crt"),
+  ca: fs.readFileSync("ca.crt")
+});
 var stats = {
   clients: 0,
   newClients: 0,
@@ -219,6 +225,6 @@ function startStats() {
 
 function startServer(port = argv.insecureListenerPort) {
   server.listen(port, argv.address, function() {
-    console.log("Running on http://" + server.address().address + ":" + server.address().port);
+    console.log(`Running on http${argv.nossl ? "" : "s"}://${server.address().address}:${server.address().port}`);
   });
 }

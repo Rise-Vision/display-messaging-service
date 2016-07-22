@@ -1,4 +1,6 @@
 const assert = require("assert"),
+serverUrl = "https://display-messaging.risevision.com:3001/?serverkey=" + process.env.SERVERKEY,
+clientUrl = "https://display-messaging.risevision.com:3000",
 wsClient = require("../ws-client.js");
 
 describe("Presence", function() {
@@ -6,8 +8,8 @@ describe("Presence", function() {
   let server;
 
   it("responds to a presence check for a connected display", ()=>{
-    let fakeSender = wsClient.createClient("http://173.255.114.227:3001/?serverkey=" + process.env.SERVERKEY),
-    fakeDisplay = wsClient.createClient("http://173.255.114.227:3000"),
+    let fakeSender = wsClient.createClient(serverUrl),
+    fakeDisplay = wsClient.createClient(clientUrl),
     displayId = String(Math.random());
 
     fakeSender.on("error", (err)=>{console.error(err);});

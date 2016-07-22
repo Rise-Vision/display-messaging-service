@@ -7,7 +7,7 @@ describe("Presence", function() {
   let server;
 
   beforeEach("start server", ()=>{
-    server = fork("./server.js", ["--workers=1"]);
+    server = fork("./server.js", ["--nossl", "--workers=1", "--serverkey=ABC"]);
   });
 
   afterEach("stop server", ()=>{
