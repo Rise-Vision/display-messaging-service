@@ -1,6 +1,6 @@
 const assert = require("assert"),
 fork = require("child_process").fork,
-wsClient = require("./ws-client.js");
+wsClient = require("../ws-client.js");
 
 describe("Presence", function() {
   this.timeout(3000);

@@ -1,11 +1,25 @@
 # Display Messaging Service
 
+## GCE Set Up
+Add project metadata for environment variable `SERVERKEY`. Sender connections are then established with:
+
+``` js
+http://hostname:3001/?SERVERKEY=[key]
+```
+
+Create an image with the installed server and `systemctl enable` a systemd service for auto start (see display-messaging-service.service).
+
+Create instance template.  See create-template.sh
+
+Create instance group.  See create-group.sh
+
 ## Messaging protocol
 #### Listener
 
 Registration
 ``` js
 {"register-display-id", displayId}
+{"display-registered", displayId}
 ```
 Screenshot request
 ``` js
@@ -33,15 +47,23 @@ Screenshot request
 Implemented as a simple serverkey as a url parameter
 
 #### Server Key
-Currently hard coded to ABC
 ``` js
-wsClient.createClient("http://localhost:3001/?serverkey=ABC"),
+new Socket("http://localhost:3001/?serverkey=[key]"
 ```
+
+Will emit `error` event (401) if key is not valid
 
 ## Integration tests
 
 ``` bash
 npm run integration
+```
+
+## E2E tests
+Make sure cloud firewall has a port open to 3001 for the e2e server
+
+``` js
+SERVERKEY=XXXXX mocha test/e2e/presence.js
 ```
 
 ###### oauth server validation (not implemented)

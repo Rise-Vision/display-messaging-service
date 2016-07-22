@@ -1,11 +1,19 @@
+#!/usr/bin/node
 var cluster = require("cluster");
 var Primus = require("primus");
 var emitter = require("primus-emitter");
 var latency = require("primus-spark-latency");
 var http = require("http");
 var fs = require("fs");
+var cpuCount = require("os").cpus().length
 var argv = require("yargs")
-  .default({address: "localhost", insecureListenerPort: 3000, workers: 6, trustedSenderPort: 3001})
+  .default({
+    address: "0.0.0.0",
+    insecureListenerPort: 3000,
+    workers: cpuCount,
+    trustedSenderPort: 3001,
+    serverkey: require("process").env.SERVERKEY || String(Math.random())
+  })
   .argv;
 var server = http.createServer();
 var stats = {
@@ -32,6 +40,7 @@ if(cluster.isMaster) {
   cluster.on("message", (worker, message)=>{
     if(message.connection) {
       displayIdsByWorker[worker.id][message.connection.displayId] = true;
+      worker.send({msg: "display-registered", displayId: message.connection.displayId});
     }
     else if(message.disconnection) {
       delete displayIdsByWorker[worker.id][message.disconnection.displayId];
@@ -65,7 +74,7 @@ if(cluster.isMaster) {
 
   startStats();
   registerSenderEvents(startPrimus((req, done)=>{
-    if (req.query.serverkey !== "ABC") {
+    if (req.query.SERVERKEY !== argv.serverKey) {
       return done(new Error("Invalid serverkey"));
     }
 
@@ -156,6 +165,10 @@ function registerListenerEvents(primus) {
       if (data.msg === "screenshot-saved") {
         process.send(data);
       }
+
+      if (data.msg === "display-registered") {
+        process.send(data);
+      }
     });
 
     process.on("message", (message)=>{
@@ -164,6 +177,10 @@ function registerListenerEvents(primus) {
       }
 
       if (message.msg === "screenshot-request") {
+        stats.sentMessages++;
+        displaysById[message.displayId].write(message);
+      }
+      if (message.msg === "display-registered") {
         stats.sentMessages++;
         displaysById[message.displayId].write(message);
       }
