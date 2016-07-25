@@ -6,7 +6,8 @@ var latency = require("primus-spark-latency");
 var http = require("http");
 var https = require("https");
 var fs = require("fs");
-var cpuCount = require("os").cpus().length
+var workersPerCpu = 3;
+var cpuCount = require("os").cpus().length * workersPerCpu;
 var argv = require("yargs")
   .default({
     address: "0.0.0.0",
