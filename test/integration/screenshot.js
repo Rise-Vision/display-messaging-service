@@ -1,13 +1,13 @@
 const assert = require("assert"),
 fork = require("child_process").fork,
-wsClient = require("./ws-client.js");
+wsClient = require("../ws-client.js");
 
 describe("Presence", function() {
   this.timeout(3000);
   let server;
 
   beforeEach("start server", ()=>{
-    server = fork("./server.js", ["--workers=1"]);
+    server = fork("./server.js", ["--nossl", "--workers=1", "--serverkey=ABC"]);
   });
 
   afterEach("stop server", ()=>{
