@@ -1,0 +1,15 @@
+[Unit]
+Description=Display Messaging Github Webhook Service
+After=google-startup-scripts.service
+
+[Service]
+ExecStart=/usr/bin/node /home/jenkins/display-messaging-service/github-webhook "%i"
+Restart=always
+User=jenkins
+Group=jenkins
+Environment=PATH=/usr/bin:/usr/local/bin
+Environment=NODE_ENV=production
+WorkingDirectory=/home/jenkins/display-messaging-service/github-webhook
+
+[Install]
+WantedBy=multi-user.target

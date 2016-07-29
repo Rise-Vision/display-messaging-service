@@ -65,3 +65,5 @@ Make sure cloud firewall has a port open to 3001 for the machine acting as the s
 ``` js
 SERVERKEY=XXXXX mocha test/e2e/presence.js
 ```
+
+The E2E test runner can be installed by running `e2e-test-runner/install.sh`. Before running the installation script, ensure the user `jenkins` exists and Node 6+ is installed.

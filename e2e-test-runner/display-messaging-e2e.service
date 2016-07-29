@@ -1,0 +1,15 @@
+[Unit]
+Description=Display Messaging E2E Test Service
+After=google-startup-scripts.service
+
+[Service]
+ExecStart=/usr/bin/node /home/jenkins/display-messaging-service/e2e-test-runner
+Restart=always
+User=jenkins
+Group=jenkins
+Environment=PATH=/usr/bin:/usr/local/bin
+Environment=NODE_ENV=production
+WorkingDirectory=/home/jenkins/display-messaging-service
+
+[Install]
+WantedBy=multi-user.target
