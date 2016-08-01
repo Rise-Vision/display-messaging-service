@@ -1,6 +1,6 @@
 [Unit]
 Description=Display Messaging Github Webhook Service
-After=google-startup-scripts.service
+After=google-instance-setup.service
 
 [Service]
 ExecStart=/usr/bin/node /home/jenkins/display-messaging-service/github-webhook "%i"

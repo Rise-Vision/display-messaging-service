@@ -1,6 +1,6 @@
 [Unit]
 Description=Display Messaging E2E Test Service
-After=google-startup-scripts.service
+After=google-instance-setup.service
 
 [Service]
 ExecStart=/usr/bin/node /home/jenkins/display-messaging-service/e2e-test-runner
