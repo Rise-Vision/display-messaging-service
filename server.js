@@ -1,8 +1,7 @@
 #!/usr/bin/node
+var crypto = require("crypto");
 var cluster = require("cluster");
 var Primus = require("primus");
-var emitter = require("primus-emitter");
-var latency = require("primus-spark-latency");
 var http = require("http");
 var https = require("https");
 var fs = require("fs");
@@ -36,7 +35,7 @@ var stats = {
 
 if(cluster.isMaster) {
   var numWorkers = argv.workers;
-  var displayIdsByWorker = {};
+  var idsByWorker = {};
 
   console.log("Master cluster setting up " + numWorkers + " workers...");
 
@@ -44,13 +43,18 @@ if(cluster.isMaster) {
     cluster.fork();
   }
 
+  function findWorkerFor(id) {
+    return Object.keys(idsByWorker).find((workerId)=>{
+      return idsByWorker[workerId][id];
+    });
+  }
+
   cluster.on("message", (worker, message)=>{
     if(message.connection) {
-      displayIdsByWorker[worker.id][message.connection.displayId] = true;
-      worker.send({msg: "display-registered", displayId: message.connection.displayId});
+      idsByWorker[worker.id][message.connection.id] = true;
     }
     else if(message.disconnection) {
-      delete displayIdsByWorker[worker.id][message.disconnection.displayId];
+      delete idsByWorker[worker.id][message.disconnection.id];
     }
     else if(message.stats) {
       stats.clients += (message.stats.newClients - message.stats.disconnectedClients);
@@ -61,19 +65,27 @@ if(cluster.isMaster) {
       stats.sentMessages += message.stats.sentMessages;
       stats.savedMessagesSent += message.stats.savedMessagesSent;
       stats.savedMessages += message.stats.savedMessages;
+    } else if (message.msg === "screenshot-saved") {
+      spark.write(message);
+    } else if (message.msg === "presence-request") {
+      worker.send({
+        msg: "presence-result",
+        clientId: message.clientId,
+        result: message.displayIds.map((id)=>{return {[id]: Boolean(findWorkerFor(id))};})
+      });
     }
   });
 
   cluster.on("online", function(worker) {
     console.log("Worker " + worker.process.pid + " is online");
 
-    displayIdsByWorker[worker.id] = {};
+    idsByWorker[worker.id] = {};
   });
 
   cluster.on("exit", function(worker, code, signal) {
     console.log("Worker " + worker.process.pid + " died with code: " + code + ", and signal: " + signal);
 
-    delete displayIdsByWorker[worker.id];
+    delete idsByWorker[worker.id];
 
     var newWorker = cluster.fork();
     console.log("Starting a new worker " + newWorker.process.pid);
@@ -91,18 +103,20 @@ if(cluster.isMaster) {
 }
 else {
   var displaysById = {};
+  var sparksById = {};
   var displaysBySpark = {};
 
-  registerListenerEvents(startPrimus());
+  registerClientEvents(startPrimus());
   startStats();
   startServer();
 }
 
 function startPrimus(authFn) {
-  var primus = new Primus(server, { transformer: "uws", use_clock_offset: true, iknowclusterwillbreakconnections: true });
-
-  primus.use("emitter", emitter);
-  primus.use("spark-latency", latency);
+  var primus = new Primus(server, {
+    transformer: "uws", //websocket only
+    use_clock_offset: true,
+    iknowclusterwillbreakconnections: true  //not an issue with websocket transport
+  });
 
   if (authFn) {primus.authorize(authFn);}
 
@@ -114,18 +128,10 @@ function registerSenderEvents(primus) {
     spark.on("data", function(data) {
       if (!data.displayId) {return spark.write({"error": "expected an id"});}
 
-      let workers = Object.keys(displayIdsByWorker);
+      let workers = Object.keys(idsByWorker);
       let workerId = workers.find((workerId)=>{
-        return displayIdsByWorker[workerId][data.displayId];
+        return idsByWorker[workerId][data.displayId];
       });
-
-      if (data.msg === "presence-request") {
-        if (!workerId) {
-          return spark.write({msg: "presence-not-detected", displayId: data.displayId});
-        }
-
-        return spark.write({msg: "presence-detected", displayId: data.displayId});
-      }
 
       if (data.msg === "screenshot-request") {
         if (!workerId) {
@@ -135,63 +141,74 @@ function registerSenderEvents(primus) {
         return cluster.workers[workerId].send(data);
       }
     });
-
-    cluster.on("message", (worker, message)=>{
-      if (message.msg === "screenshot-saved") {
-        spark.write(message);
-      }
-    });
   });
 }
 
-function registerListenerEvents(primus) {
+function registerClientEvents(primus) {
+  process.on("message", (message)=>{
+    if (!(displaysById[message.displayId] || sparksById[message.clientId])) {
+      return console.error(`Worker received ${JSON.stringify(message)} for an id it does not handle`);
+    }
+
+    if (message.msg === "presence-result") {
+      sparksById[message.clientId].write(message);
+    } else if (message.msg === "screenshot-request") {
+      stats.sentMessages++;
+      displaysById[message.displayId].write(message);
+    }
+  });
+
   primus.on("connection", function(spark) {
-    spark.on("end", function() {
-      stats.clients--;
-      stats.disconnectedClients++;
+    let displayId = spark.query.displayId || spark.query.displayID || spark.query.displayid;
 
-      var displayId = displaysBySpark[spark.id];
+    if (displayId) {
+      stats.clients++;
+      stats.newClients++;
+      displaysById[displayId] = spark;
+      displaysBySpark[spark.id] = displayId;
 
-      delete displaysById[displayId];
-      delete displaysBySpark[spark.id];
-      process.send({ disconnection: { displayId: displayId }});
-    });
+      process.send({ connection: { id: displayId }});
 
-    spark.on("data", function (data) {
-      if (!data.displayId) {return spark.write({error: "expected an id"});}
+      spark.on("end", function() {
+        stats.clients--;
+        stats.disconnectedClients++;
 
-      if (data.msg === "register-display-id") {
-        stats.clients++;
-        stats.newClients++;
-        displaysById[data.displayId] = spark;
-        displaysBySpark[spark.id] = data.displayId;
+        var displayId = displaysBySpark[spark.id];
 
-        process.send({ connection: { displayId: data.displayId }});
-      }
+        delete displaysById[displayId];
+        delete displaysBySpark[spark.id];
+        process.send({ disconnection: { id: displayId }});
+      });
 
-      if (data.msg === "screenshot-saved") {
-        process.send(data);
-      }
+      spark.on("data", function (data) {
+        if (!data.displayId) {return spark.write({error: "expected an id"});}
 
-      if (data.msg === "display-registered") {
-        process.send(data);
-      }
-    });
+        if (data.msg === "screenshot-saved") {
+          process.send(data);
+        }
+      });
+    } else {
+      stats.clients++;
+      stats.newClients++;
 
-    process.on("message", (message)=>{
-      if (!displaysById[message.displayId]) {
-        return console.error(`Worker received ${message} for an id it does not handle`);
-      }
+      sparksById[spark.id] = spark;
+      process.send({connection: {id: spark.id}});
+      spark.write({"msg": "client-connected", "clientId": spark.id});
 
-      if (message.msg === "screenshot-request") {
-        stats.sentMessages++;
-        displaysById[message.displayId].write(message);
-      }
-      if (message.msg === "display-registered") {
-        stats.sentMessages++;
-        displaysById[message.displayId].write(message);
-      }
-    });
+      spark.on("data", function (data) {
+        if (data.msg === "presence-request") {
+          data.clientId = spark.id;
+          process.send(data);
+        }
+      });
+
+      spark.on("end", function() {
+        stats.clients--;
+        stats.disconnectedClients++;
+        delete sparksById[spark.id];
+        process.send({disconnection: {id: spark.id}});
+      });
+    }
   });
 }
 
@@ -203,7 +220,6 @@ function startStats() {
         stats.newErrors, stats.newGCSErrors, stats.sentMessages, stats.savedMessagesSent, stats.savedMessages
       ].join(",");
 
-      console.log(JSON.stringify(stats));
 
       fs.appendFile("stats.csv", currStats + "\n", function (err) {
         if(err) { console.log("Error saving stats", err); }
