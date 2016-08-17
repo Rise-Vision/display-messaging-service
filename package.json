@@ -7,10 +7,8 @@
     "forever-monitor": "1.5.2",
     "koa": "^1.2.1",
     "koa-bodyparser": "^2.2.0",
-    "primus": "5.2.2",
-    "primus-emitter": "3.1.1",
-    "primus-spark-latency": "0.1.1",
-    "uws": "0.4.x",
+    "primus": ">5.2.2",
+    "uws": "^0.7.9",
     "ws": "1.1.1",
     "yargs": "^4.7.1"
   },
