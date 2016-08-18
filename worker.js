@@ -17,6 +17,7 @@ function startPrimus(server) {
     iknowclusterwillbreakconnections: true  //not an issue with websocket transport
   });
 
+  primus.save(__dirname + "/primus.js");
   return primus;
 }
 
