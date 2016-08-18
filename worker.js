@@ -32,11 +32,16 @@ function registerClientEvents(primus) {
     } else if (message.msg === "screenshot-request") {
       stats.incrementCount("sentMessages");
       sparksById[message.displayId].write(message);
+    } else if (message.msg === "duplicate-display-id") {
+      sparksById[message.displayId].write(message);
+      delete sparksById[message.displayId];
     }
   });
 
   primus.on("connection", function(spark) {
     let displayId = spark.query.displayId || spark.query.displayID || spark.query.displayid;
+
+    if (displayId && sparksById[displayId]) {sparksById[displayId].write({"msg": "duplicate-display-id"});}
 
     stats.incrementCount("clients");
     stats.incrementCount("newClients");
