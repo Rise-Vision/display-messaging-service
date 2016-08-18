@@ -19,7 +19,8 @@ describe("Duplicate Display Id", function() {
 
   function runTest() {
     let firstDisplay = wsClient.createClient("http://127.0.0.1:3000/?displayId=12345"),
-    secondDisplay;
+    secondDisplay,
+    browserClient = wsClient.createClient("http://127.0.0.1:3000/");
 
     firstDisplay.on("open", ()=>{
       console.log("connecting second display");
@@ -29,10 +30,21 @@ describe("Duplicate Display Id", function() {
     return new Promise((res)=>{
       firstDisplay.on("data", function(data) {
         if (data.msg === "duplicate-display-id") {
-          firstDisplay.end();
-          secondDisplay.end();
           res();
         }
+      });
+    })
+    .then(()=>{
+      browserClient.write({msg: "presence-request", "displayIds": ["12345"]});
+
+      return new Promise((res)=>{
+        browserClient.on("data", function(data) {
+          if (data.msg === "presence-result" && data.result[0]["12345"]) {
+            firstDisplay.end();
+            secondDisplay.end();
+            res();
+          }
+        });
       });
     });
   }
