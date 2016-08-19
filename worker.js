@@ -70,3 +70,7 @@ function registerClientEvents(primus) {
     });
   });
 }
+
+function requestListener() {
+  console.log(`Running on http${argv.nossl ? "" : "s"}://${server.address().address}:${server.address().port}`);
+}

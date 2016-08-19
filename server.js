@@ -22,18 +22,16 @@ let server = argv.nossl ? http.createServer() : https.createServer({
   ca: fs.readFileSync("ca.crt")
 });
 
-function startServer(port = argv.insecureListenerPort) {
-  server.listen(port, argv.address, function() {
-    console.log(`Running on http${argv.nossl ? "" : "s"}://${server.address().address}:${server.address().port}`);
-  });
+function startServer(requestHandler, port = argv.insecureListenerPort) {
+  server.listen(port, argv.address, requestHandler);
 }
 
 if(cluster.isMaster) {
-  require("./master.js").setup(argv.workers, cluster);
+  require("./master.js").setup(server, argv, cluster);
   require("./stats.js").forMaster();
-  startServer(argv.trustedSenderPort);
+  startServer(require("./master.js").requestListener, argv.trustedSenderPort);
 } else {
   require("./worker.js").setup(server);
   require("./stats.js").forWorkers();
-  startServer();
+  startServer(require("./worker.js").requestListener);
 }
