@@ -1,6 +1,6 @@
 const koa = require("koa");
 const stats = require("./stats.js");
-let app = koa();
+let koaApp = koa();
 let idsByWorker = {};
 
 module.exports = {
@@ -48,10 +48,10 @@ module.exports = {
       }
     });
 
-    setupRequestHandler(argv.serverKey);
+    setupRequestHandler(argv.serverkey);
   },
   requestListener() {
-    return app.callback();
+    return koaApp.callback();
   }
 };
 
@@ -62,35 +62,44 @@ function findWorkerFor(id) {
 }
 
 function setupRequestHandler(serverKey) {
-  var handlers = [ new ForwardHandler("content_updated"),
-                   new ForwardHandler("reboot", "reboot-request"),
-                   new ForwardHandler("restart", "restart-request"),
-                   new ScreenshotHandler() ];
+  var handlers = [ createForwardHandler("content_updated"),
+                   createForwardHandler("reboot", "reboot-request"),
+                   createForwardHandler("restart", "restart-request"),
+                   createScreenshotHandler() ];
 
-  app.use(function *() {
+  console.log("Setting up", serverKey);
+
+  koaApp.on("error", function(err) {
+    console.log("Server error", err);
+  });
+
+  koaApp.use(function *() {
     let params = this.request.query;
 
+    this.status = 500;
+
     if(params.sk != serverKey) {
-      this.throw(403, "Invalid server key");
+      this.status = 403;
+      this.body = "Invalid server key";
     }
     else if(!params.did) {
-      this.throw(500, "Display id is required");
+      this.body = "Display id is required";
     }
     else {
       var worker = findWorkerFor(params.cid);
       var handler = handlers.find((handler)=>{ return handler.message === params.msg; });
 
       if(!worker) {
-        this.throw(500, "Display id not found");
+        this.body = "Display id not found";
       }
       else if(!handler) {
-        this.throw(500, "Invalid message type");
+        this.body = "Invalid message type";
       }
       else {
         var reason = handler.isNotValid && !handler.isNotValid(this);
 
         if(reason) {
-          this.throw(500, reason);
+          this.body = reason;
         }
         else {
           handler.handle(this, worker);
@@ -102,38 +111,42 @@ function setupRequestHandler(serverKey) {
   });
 }
 
-function ForwardHandler(message, newMessageName) {
-  this.message = message;
-  this.handle = (context, worker)=>{
-    var params = context.request.query;
+function createForwardHandler(message, newMessageName) {
+  return {
+    message: message,
+    handle: (context, worker)=>{
+      var params = context.request.query;
 
-    worker.send(Object.assign({}, params, {
-      displayId: params.cid,
-      message: newMessageName || message
-    }));
+      worker.send(Object.assign({}, params, {
+        displayId: params.cid,
+        message: newMessageName || message
+      }));
+    }
   };
 }
 
-function ScreenshotHandler() {
-  this.message = "screenshot";
-  this.isNotValid = (context)=>{
-    var params = context.request.query;
+function createScreenshotHandler() {
+  return {
+    message: "screenshot",
+    isNotValid: (context)=>{
+      var params = context.request.query;
 
-    if(params.msg === "screenshot" && (!params.cid || !params.url)) {
-      return "cid and url are required for screenshot requests";
-    }
-    else {
-      return null;
-    }
-  };
-  this.handler = (context, worker)=>{
-    var params = context.request.query;
+      if(params.msg === "screenshot" && (!params.cid || !params.url)) {
+        return "cid and url are required for screenshot requests";
+      }
+      else {
+        return null;
+      }
+    },
+    handler: (context, worker)=>{
+      var params = context.request.query;
 
-    worker.send({
-      msg: "screenshot-request",
-      displayId: params.cid,
-      url: params.url,
-      clientId: params.clientid
-    });
+      worker.send({
+        msg: "screenshot-request",
+        displayId: params.cid,
+        url: params.url,
+        clientId: params.clientid
+      });
+    }
   };
 }
