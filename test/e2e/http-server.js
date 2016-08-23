@@ -37,7 +37,7 @@ describe("HTTP server", function() {
     let displayId = String(Math.random()),
         displayUrl = clientUrl + "?displayId=" + displayId,
         fakeDisplay = wsClient.createClient(displayUrl),
-        requestUrl = serverUrl + "?sk=" + serverKey + "&did=invalid" + "&msg=reboot";
+        requestUrl = serverUrl + "?sk=" + serverKey + "&did=invalid";
 
     return new Promise((res)=>{
       fakeDisplay.on("open", ()=>{

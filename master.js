@@ -103,8 +103,8 @@ function setupRequestHandler(serverKey) {
       this.body = "Display id is required";
     }
     else {
-      var worker = findWorkerFor(params.did);
-      var handler = handlers.find((handler)=>{ return handler.message === params.msg; });
+      let worker = findWorkerFor(params.did);
+      let handler = handlers.find((handler)=>{ return handler.message === params.msg; });
 
       if(!worker) {
         this.body = "Display id not found";
@@ -113,7 +113,7 @@ function setupRequestHandler(serverKey) {
         this.body = "Invalid message type";
       }
       else {
-        var reason = handler.isNotValid && handler.isNotValid(this);
+        let reason = handler.isNotValid && handler.isNotValid(this);
 
         if(reason) {
           this.body = reason;

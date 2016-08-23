@@ -1,3 +1,4 @@
 stats.csv
 node_modules
 primus.js
+/npm-debug.log

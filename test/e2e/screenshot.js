@@ -31,14 +31,12 @@ describe("Screenshot", function() {
           });
 
           fakeDisplay.on("data", (data)=>{
-            console.log("display data", data);
             if (data.msg === "screenshot-request" && data.displayId === displayId) {
               fakeDisplay.write({ msg: "screenshot-saved", displayId: displayId, clientId: clientAppId });
             }
           });
 
           fakeClient.on("data", (data)=>{
-            console.log("client data", data);
             if (data.msg === "screenshot-saved" &&
                 data.displayId === displayId && data.clientId === clientAppId) {
               fakeDisplay.end();
