@@ -33,6 +33,10 @@ function registerClientEvents(primus) {
       stats.incrementCount("sentMessages");
       sparksById[message.displayId].write(message);
     }
+   else if (message.msg === "screenshot-saved") {
+      stats.incrementCount("sentMessages");
+      sparksById[message.clientId].write(message);
+    }
     else if (message.msg === "reboot-request") {
       stats.incrementCount("sentMessages");
       sparksById[message.displayId].write(message);
@@ -71,8 +75,7 @@ function registerClientEvents(primus) {
         data.clientId = spark.id;
         process.send(data);
       }
-
-      if (data.msg === "screenshot-saved") {
+      else if (data.msg === "screenshot-saved") {
         if (!data.displayId) {
           spark.write({error: "expected an id"});
         }
