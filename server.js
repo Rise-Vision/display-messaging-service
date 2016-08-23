@@ -16,20 +16,20 @@ let argv = require("yargs")
 })
 .argv;
 
-let server = argv.nossl ? http.createServer() : https.createServer({
+let handler = cluster.isMaster ? require("./master.js").requestListener() : require("./worker.js").requestListener;
+
+let server = argv.nossl ? http.createServer(handler) : https.createServer({
   key: fs.readFileSync("server.key"),
   cert: fs.readFileSync("server.crt"),
   ca: fs.readFileSync("ca.crt")
-});
+}, handler);
 
 function startServer(port = argv.insecureListenerPort) {
-  server.listen(port, argv.address, function() {
-    console.log(`Running on http${argv.nossl ? "" : "s"}://${server.address().address}:${server.address().port}`);
-  });
+  server.listen(port, argv.address);
 }
 
 if(cluster.isMaster) {
-  require("./master.js").setup(argv.workers, cluster);
+  require("./master.js").setup(server, argv, cluster);
   require("./stats.js").forMaster();
   startServer(argv.trustedSenderPort);
 } else {

@@ -10,9 +10,11 @@
     "primus": ">5.2.2",
     "uws": "^0.7.9",
     "ws": "1.1.1",
-    "yargs": "^4.7.1"
+    "yargs": "^4.7.1",
+    "request": "2.74.0"
   },
   "scripts": {
-    "integration": "npm install && mocha test/integration/presence.js && mocha test/integration/screenshot.js"
+    "integration": "npm install && mocha test/integration/presence.js && mocha test/integration/screenshot.js",
+    "e2e": "npm install && mocha test/e2e/http-server.js && mocha test/e2e/reboot.js"
   }
 }
