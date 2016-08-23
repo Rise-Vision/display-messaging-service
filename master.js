@@ -1,3 +1,4 @@
+const cluster = require("cluster");
 const koa = require("koa");
 const stats = require("./stats.js");
 let koaApp = koa();
@@ -86,7 +87,7 @@ function setupRequestHandler(serverKey) {
       this.body = "Display id is required";
     }
     else {
-      var worker = findWorkerFor(params.cid);
+      var worker = findWorkerFor(params.did);
       var handler = handlers.find((handler)=>{ return handler.message === params.msg; });
 
       if(!worker) {
@@ -102,7 +103,7 @@ function setupRequestHandler(serverKey) {
           this.body = reason;
         }
         else {
-          handler.handle(this, worker);
+          handler.handle(this, cluster.workers[worker]);
           this.status = 200;
           this.body = "Message processed";
         }
@@ -118,8 +119,8 @@ function createForwardHandler(message, newMessageName) {
       var params = context.request.query;
 
       worker.send(Object.assign({}, params, {
-        displayId: params.cid,
-        message: newMessageName || message
+        displayId: params.did,
+        msg: newMessageName || message
       }));
     }
   };
@@ -131,8 +132,8 @@ function createScreenshotHandler() {
     isNotValid: (context)=>{
       var params = context.request.query;
 
-      if(params.msg === "screenshot" && (!params.cid || !params.url)) {
-        return "cid and url are required for screenshot requests";
+      if(params.msg === "screenshot" && (!params.did || !params.url)) {
+        return "did and url are required for screenshot requests";
       }
       else {
         return null;
@@ -143,7 +144,7 @@ function createScreenshotHandler() {
 
       worker.send({
         msg: "screenshot-request",
-        displayId: params.cid,
+        displayId: params.did,
         url: params.url,
         clientId: params.clientid
       });
