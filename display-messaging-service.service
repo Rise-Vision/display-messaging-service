@@ -7,7 +7,6 @@ ExecStart=/home/jenkins/display-messaging-service/server.js
 Restart=always
 User=jenkins
 Group=jenkins
-Environment=PATH=/usr/bin:/usr/local/bin
 Environment=NODE_ENV=production
 EnvironmentFile=/etc/display-messaging-service.env
 WorkingDirectory=/home/jenkins/display-messaging-service

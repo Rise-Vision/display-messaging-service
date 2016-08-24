@@ -7,7 +7,6 @@ ExecStart=/usr/bin/node /home/jenkins/display-messaging-service/e2e-test-runner
 Restart=always
 User=jenkins
 Group=jenkins
-Environment=PATH=/usr/bin:/usr/local/bin
 Environment=NODE_ENV=production
 WorkingDirectory=/home/jenkins/display-messaging-service
 

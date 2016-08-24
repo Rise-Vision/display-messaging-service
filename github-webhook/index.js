@@ -10,6 +10,12 @@ const app = koa();
 app.use(bodyParser());
 
 app.use(function *(){
+  if (this.request.url === "/github-web-hook") {
+    this.response.body = "OK";
+  }
+});
+
+app.use(function *(){
   if (this.request.body.ref === "refs/heads/master") {
     child_process.exec(path.join(__dirname, `update-version.sh ${argv._[0]}`));
   }
