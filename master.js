@@ -46,7 +46,7 @@ module.exports = {
       else if(message.stats) {
         stats.updateFromWorker(message.stats);
       }
-      else if (message.msg === "screenshot-saved") {
+      else if (message.msg === "screenshot-saved" || message.msg === "screenshot-failed") {
         let destWorkerId = findWorkerFor(message.clientId);
 
         if(destWorkerId) {
