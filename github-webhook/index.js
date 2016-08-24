@@ -9,9 +9,10 @@ const port = 8080;
 const app = koa();
 app.use(bodyParser());
 
-app.use(function *(){
+app.use(function *(next){
   if (this.request.url === "/github-web-hook") {
     this.response.body = "OK";
+    yield next;
   }
 });
 
