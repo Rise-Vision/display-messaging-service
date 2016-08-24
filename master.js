@@ -45,9 +45,18 @@ module.exports = {
       }
       else if(message.stats) {
         stats.updateFromWorker(message.stats);
-      } else if (message.msg === "screenshot-saved") {
-        spark.write(message);
-      } else if (message.msg === "presence-request") {
+      }
+      else if (message.msg === "screenshot-saved") {
+        let destWorkerId = findWorkerFor(message.clientId);
+
+        if(destWorkerId) {
+          cluster.workers[destWorkerId].send(message);
+        }
+        else{
+          console.log("Destination clientId does not exist");
+        }
+      }
+      else if (message.msg === "presence-request") {
         worker.send({
           result: message.displayIds.map((id)=>{return {[id]: Boolean(findWorkerFor(id))};}),
           msg: "presence-result",
@@ -94,8 +103,8 @@ function setupRequestHandler(serverKey) {
       this.body = "Display id is required";
     }
     else {
-      var worker = findWorkerFor(params.did);
-      var handler = handlers.find((handler)=>{ return handler.message === params.msg; });
+      let worker = findWorkerFor(params.did);
+      let handler = handlers.find((handler)=>{ return handler.message === params.msg; });
 
       if(!worker) {
         this.body = "Display id not found";
@@ -104,7 +113,7 @@ function setupRequestHandler(serverKey) {
         this.body = "Invalid message type";
       }
       else {
-        var reason = handler.isNotValid && !handler.isNotValid(this);
+        let reason = handler.isNotValid && handler.isNotValid(this);
 
         if(reason) {
           this.body = reason;
@@ -139,21 +148,21 @@ function createScreenshotHandler() {
     isNotValid: (context)=>{
       var params = context.request.query;
 
-      if(params.msg === "screenshot" && (!params.did || !params.url)) {
-        return "did and url are required for screenshot requests";
+      if(params.msg === "screenshot" && (!params.did || !params.cid || !params.url)) {
+        return "did, cid and url are required for screenshot requests";
       }
       else {
         return null;
       }
     },
-    handler: (context, worker)=>{
+    handle: (context, worker)=>{
       var params = context.request.query;
 
       worker.send({
         msg: "screenshot-request",
         displayId: params.did,
         url: params.url,
-        clientId: params.clientid
+        clientId: params.cid
       });
     }
   };

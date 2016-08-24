@@ -24,15 +24,18 @@ function startPrimus(server) {
 function registerClientEvents(primus) {
   process.on("message", (message)=>{
     if (!(sparksById[message.displayId] || sparksById[message.clientId])) {
-      return console.error(`Worker received ${JSON.stringify(message)} for an id it does not handle`);
+      console.error(`Worker received ${JSON.stringify(message)} for an id it does not handle`);
     }
-
-    if (message.msg === "presence-result") {
+    else if (message.msg === "presence-result") {
       sparksById[message.clientId].write(message);
     }
     else if (message.msg === "screenshot-request") {
       stats.incrementCount("sentMessages");
       sparksById[message.displayId].write(message);
+    }
+   else if (message.msg === "screenshot-saved") {
+      stats.incrementCount("sentMessages");
+      sparksById[message.clientId].write(message);
     }
     else if (message.msg === "reboot-request") {
       stats.incrementCount("sentMessages");
@@ -72,11 +75,13 @@ function registerClientEvents(primus) {
         data.clientId = spark.id;
         process.send(data);
       }
-
-      if (data.msg === "screenshot-saved") {
-        if (!data.displayId) {return spark.write({error: "expected an id"});}
-
-        process.send(data);
+      else if (data.msg === "screenshot-saved") {
+        if (!data.displayId) {
+          spark.write({error: "expected an id"});
+        }
+        else {
+          process.send(data);
+        }
       }
     });
   });
