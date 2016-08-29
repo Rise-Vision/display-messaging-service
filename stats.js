@@ -26,18 +26,19 @@ module.exports = {
         if(err) { console.log("Error saving stats", err); }
       });
 
-      resetStats();
+      stats = resetStats();
     }, 5000);
   },
   forWorkers() {
     setInterval(function () {
+      console.log(stats);
       process.send({ stats: stats });
 
-      resetStats();
+      stats = resetStats();
     }, 1000);
   },
-  incrementCount(stat) {stats[stat] += stats[stat]},
-  decrementCount(stat) {stats[stat] -= stats[stat]},
+  incrementCount(stat) {stats[stat] += 1;},
+  decrementCount(stat) {stats[stat] -= 1;},
   updateFromWorker(workerStats) {
     stats.clients += (workerStats.newClients - workerStats.disconnectedClients);
     stats.newClients += workerStats.newClients;
@@ -48,4 +49,4 @@ module.exports = {
     stats.savedMessagesSent += workerStats.savedMessagesSent;
     stats.savedMessages += workerStats.savedMessages;
   }
-}
+};
