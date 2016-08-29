@@ -14,6 +14,6 @@
   },
   "scripts": {
     "integration": "npm install && mocha test/integration/presence.js && mocha test/integration/screenshot.js",
-    "e2e": "npm install && mocha test/e2e/http-server.js && mocha test/e2e/reboot.js && mocha test/e2e/screenshot.js"
+    "e2e": "npm install && mocha test/e2e/http-server.js && mocha test/e2e/restart.js && mocha test/e2e/reboot.js && mocha test/e2e/screenshot.js"
   }
 }
