@@ -59,12 +59,14 @@ describe("HTTP server", function() {
 
     return new Promise((res)=>{
       fakeDisplay.on("open", ()=>{
-        request(requestUrl, (err, resp, body)=>{
-          if(resp.statusCode === 500 && body === "Invalid message type") {
-            fakeDisplay.end();
-            res();
-          }
-        });
+        setTimeout(()=>{
+          request(requestUrl, (err, resp, body)=>{
+            if(resp.statusCode === 500 && body === "Invalid message type") {
+              fakeDisplay.end();
+              res();
+            }
+          });
+        }, 200);
       });
     });
   });
