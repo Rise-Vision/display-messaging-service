@@ -37,10 +37,11 @@ function registerClientEvents(primus) {
       stats.incrementCount("sentMessages");
       sparksById[message.clientId].write(message);
     }
-    else if (message.msg === "reboot-request") {
+    else if (message.msg === "restart-request" || message.msg === "reboot-request") {
       stats.incrementCount("sentMessages");
       sparksById[message.displayId].write(message);
-    } else if (message.msg === "duplicate-display-id") {
+    }
+    else if (message.msg === "duplicate-display-id") {
       sparksById[message.displayId].write(message);
       delete sparksById[message.displayId];
     }
