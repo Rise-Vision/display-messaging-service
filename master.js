@@ -106,10 +106,10 @@ function setupRequestHandler(serverKey) {
       let worker = findWorkerFor(params.did);
       let handler = handlers.find((handler)=>{ return handler.message === params.msg; });
 
-      if(!worker) {
+      if(worker === undefined) {
         this.body = "Display id not found";
       }
-      else if(!handler) {
+      else if(handler === undefined) {
         this.body = "Invalid message type";
       }
       else {
