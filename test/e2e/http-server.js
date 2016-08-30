@@ -26,7 +26,7 @@ describe("HTTP server", function() {
 
     return new Promise((res)=>{
       request(requestUrl, (err, resp, body)=>{
-        if(resp.statusCode === 500 && body === "Display id is required") {
+        if(resp.statusCode === 400 && body === "Display id is required") {
           res();
         }
       });
@@ -42,7 +42,7 @@ describe("HTTP server", function() {
     return new Promise((res)=>{
       fakeDisplay.on("open", ()=>{
         request(requestUrl, (err, resp, body)=>{
-          if(resp.statusCode === 500 && body === "Display id not found") {
+          if(resp.statusCode === 404 && body === "Display id not found") {
             fakeDisplay.end();
             res();
           }
@@ -61,7 +61,7 @@ describe("HTTP server", function() {
       fakeDisplay.on("open", ()=>{
         setTimeout(()=>{
           request(requestUrl, (err, resp, body)=>{
-            if(resp.statusCode === 500 && body === "Invalid message type") {
+            if(resp.statusCode === 400 && body === "Invalid message type") {
               fakeDisplay.end();
               res();
             }

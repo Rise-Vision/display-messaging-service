@@ -100,6 +100,7 @@ function setupRequestHandler(serverKey) {
       this.body = "Invalid server key";
     }
     else if(!params.did) {
+      this.status = 400;
       this.body = "Display id is required";
     }
     else {
@@ -107,15 +108,18 @@ function setupRequestHandler(serverKey) {
       let handler = handlers.find((handler)=>{ return handler.message === params.msg; });
 
       if(worker === undefined) {
+        this.status = 404;
         this.body = "Display id not found";
       }
       else if(handler === undefined) {
+        this.status = 400;
         this.body = "Invalid message type";
       }
       else {
         let reason = handler.isNotValid && handler.isNotValid(this);
 
         if(reason) {
+          this.status = 400;
           this.body = reason;
         }
         else {
