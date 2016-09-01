@@ -1,39 +1,29 @@
 const assert = require("assert"),
-serverUrl = "https://display-messaging.risevision.com:3001/?serverkey=" + process.env.SERVERKEY,
-clientUrl = "https://display-messaging.risevision.com:3000",
+browserUrl = "https://display-messaging.risevision.com:3000/",
+displayId = "E2EPRES"+Math.random(),
+displayUrl = "https://display-messaging.risevision.com:3000/?displayId=" + displayId,
 wsClient = require("../ws-client.js");
 
 describe("Presence", function() {
   this.timeout(5000);
-  let server;
+  let fakeDisplay = wsClient.createClient(displayUrl),
+  fakeBrowser = wsClient.createClient(browserUrl);
 
-  it("responds to a presence check for a connected display", ()=>{
-    let fakeSender = wsClient.createClient(serverUrl),
-    fakeDisplay = wsClient.createClient(clientUrl),
-    displayId = String(Math.random());
+  fakeBrowser.on("error", (err)=>{console.error(err);});
 
-    fakeSender.on("error", (err)=>{console.error(err);});
+  fakeBrowser.on("data", function(data) {
+    if (data.msg === "client-connected") {
+      fakeBrowser.write({msg: "presence-request", "displayIds": [displayId]});
+    }
+  });
 
-    fakeDisplay.on("open", ()=>{
-      console.log("Display connection opened");
-      fakeDisplay.write({msg: "register-display-id", displayId});
-
-      fakeDisplay.on("data", (data)=>{
-        console.log(data);
-        if (data.msg === "display-registered" && data.displayId === displayId) {
-          console.log("sending presence request");
-          fakeSender.write({msg: "presence-request", displayId});
-        }
-      });
-    });
-
+  it("returns presence for a display", ()=>{
     return new Promise((res)=>{
-      fakeSender.on("data", function(data) {
-        console.log(data);
-        if (data.msg === "presence-detected") {
+      fakeBrowser.on("data", function(data) {
+        if (data.msg === "presence-result") {
           fakeDisplay.end();
-          fakeSender.end();
-          res();
+          fakeBrowser.end();
+          if (data.result.some((el)=>{return el[displayId]})) {res();}
         }
       });
     });
