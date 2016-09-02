@@ -1,7 +1,7 @@
 var Primus = require("../primus.js");
 
 module.exports = {
-  createClient(serverUrl) {
-    return new Primus(serverUrl);
+  createClient(serverUrl, autoConnect = true) {
+    return new Primus(serverUrl, {manual: !autoConnect});
   }
 };
