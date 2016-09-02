@@ -9,7 +9,8 @@ describe("Presence", function() {
   let fakeDisplay = wsClient.createClient(displayUrl),
   fakeBrowser = wsClient.createClient(browserUrl);
 
-  fakeBrowser.on("error", (err)=>{console.error(err);});
+  fakeBrowser.on("error", console.error);
+  fakeDisplay.on("error", console.error);
 
   fakeBrowser.on("data", function(data) {
     if (data.msg === "client-connected") {
@@ -23,9 +24,12 @@ describe("Presence", function() {
         if (data.msg === "presence-result") {
           fakeDisplay.end();
           fakeBrowser.end();
-          if (data.result.some((el)=>{return el[displayId]})) {res();}
+          res(data.result);
         }
       });
+    })
+    .then((res)=>{
+      assert(res.some((el)=>{return el[displayId];}));
     });
   });
 });
