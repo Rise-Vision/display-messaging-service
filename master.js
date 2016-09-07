@@ -137,6 +137,7 @@ function createForwardHandler(message, newMessageName) {
     message: message,
     handle: (context, worker)=>{
       var params = context.request.query;
+      delete params.sk;
 
       worker.send(Object.assign({}, params, {
         displayId: params.did,
