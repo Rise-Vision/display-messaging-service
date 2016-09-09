@@ -32,7 +32,7 @@ module.exports = {
       if(message.connection) {
         let dupeIdWorker = findWorkerFor(message.connection.id);
         if (dupeIdWorker && dupeIdWorker !== String(worker.id)) {
-          console.log("sending duplicate id message to " + worker.id);
+          console.log(`sending duplicate id message for ${message.connection.id} to worker ${worker.id}`);
           delete idsByWorker[dupeIdWorker][message.connection.id];
           cluster.workers[dupeIdWorker].send({"msg": "duplicate-display-id", "displayId": message.connection.id});
         }
