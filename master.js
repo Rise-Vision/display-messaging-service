@@ -1,6 +1,5 @@
 const cluster = require("cluster");
 const koa = require("koa");
-const stats = require("./stats.js");
 let koaApp = koa();
 let idsByWorker = {};
 
@@ -33,7 +32,7 @@ module.exports = {
       if(message.connection) {
         let dupeIdWorker = findWorkerFor(message.connection.id);
         if (dupeIdWorker && dupeIdWorker !== String(worker.id)) {
-          console.log("sending duplicate id message to " + worker.id);
+          console.log(`sending duplicate id message for ${message.connection.id} to worker ${worker.id}`);
           delete idsByWorker[dupeIdWorker][message.connection.id];
           cluster.workers[dupeIdWorker].send({"msg": "duplicate-display-id", "displayId": message.connection.id});
         }
@@ -42,9 +41,6 @@ module.exports = {
       }
       else if(message.disconnection) {
         delete idsByWorker[worker.id][message.disconnection.id];
-      }
-      else if(message.stats) {
-        stats.updateFromWorker(message.stats);
       }
       else if (message.msg === "screenshot-saved" || message.msg === "screenshot-failed") {
         let destWorkerId = findWorkerFor(message.clientId);

@@ -13,14 +13,14 @@ google.auth.getApplicationDefault((err, auth)=>{
 });
 
 module.exports = {
-  createTimeSeriesEntry(metric = "passcount", value = 1, time = new Date().toISOString()) {
+  createTimeSeriesEntry(metric = "e2eruns/passcount", value = 1, time = new Date().toISOString()) {
     let request = {
       name: "projects/display-messaging-service",
       resource: {
         "timeSeries": [
         {
           "metric": {
-            "type": `custom.googleapis.com/e2eruns/${metric}`,
+            "type": `custom.googleapis.com/${metric}`,
           },
           "resource": {
             "type": "global",
@@ -45,7 +45,7 @@ module.exports = {
     };
 
     stackDriverMonitoring.projects.timeSeries.create(request, (err, result)=>{
-      console.log(err || result);
+      if (err) {console.log(err);}
     });
   }
 };
