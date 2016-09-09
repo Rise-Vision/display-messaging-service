@@ -1,51 +1,59 @@
-var stats = resetStats();
+const cluster = require("cluster");
+const sd = require("./e2e-test-runner/stack-driver.js");
 
-function resetStats() {
+var stats = resetIntervalStats();
+
+function resetIntervalStats() {
   return {
-    clients: 0,
-    newClients: 0,
-    disconnectedClients: 0,
-    unknownDisconnectedClients: 0,
-    newErrors: 0,
-    sentMessages: 0,
-    savedMessagesSent: 0,
-    savedMessages: 0
+    intervalClientCount: 0,
+    intervalErrorCount: 0,
+    intervalMessageCount: 0
   };
 }
 
 module.exports = {
-  forMaster() {
-    var fs = require("fs");
-    setInterval(function () {
-      var currStats = [
-        Date.now(), stats.clients, stats.newClients, stats.disconnectedClients, stats.unknownDisconnectedClients,
-        stats.newErrors, stats.newGCSErrors, stats.sentMessages, stats.savedMessagesSent, stats.savedMessages
-      ].join(",");
-
-      fs.appendFile("stats.csv", currStats + "\n", function (err) {
-        if(err) { console.log("Error saving stats", err); }
-      });
-
-      resetStats();
-    }, 5000);
-  },
   forWorkers() {
-    setInterval(function () {
-      process.send({ stats: stats });
-
-      resetStats();
-    }, 1000);
+    process.on("message", (message)=>{
+      if (message !== "collect-stats") {return;}
+      process.send({ stats: Object.assign({}, stats)});
+      stats = resetIntervalStats();
+    });
   },
-  incrementCount(stat) {stats[stat] += stats[stat]},
-  decrementCount(stat) {stats[stat] -= stats[stat]},
+  incrementCount(stat) {stats[stat] += 1;},
+  decrementCount(stat) {stats[stat] -= 1;},
+  forMaster() {
+    stats.totalClientCount = 0;
+
+    cluster.on("message", (worker, message)=>{
+      if(message.stats) {
+        module.exports.updateFromWorker(message.stats);
+      }
+    });
+
+    setInterval(module.exports.collectStatsFromWorkers, 1000 * 60 * 5);
+  },
+  collectStatsFromWorkers() {
+    stats.intervalUpdates = 0;
+
+    Object.keys(cluster.workers).forEach((id)=>{
+      cluster.workers[id].send("collect-stats");
+    });
+  },
   updateFromWorker(workerStats) {
-    stats.clients += (workerStats.newClients - workerStats.disconnectedClients);
-    stats.newClients += workerStats.newClients;
-    stats.disconnectedClients += workerStats.disconnectedClients;
-    stats.unknownDisconnectedClients += workerStats.unknownDisconnectedClients;
-    stats.newErrors += workerStats.newErrors;
-    stats.sentMessages += workerStats.sentMessages;
-    stats.savedMessagesSent += workerStats.savedMessagesSent;
-    stats.savedMessages += workerStats.savedMessages;
+    stats.totalClientCount += workerStats.intervalClientCount;
+    stats.intervalClientCount += workerStats.intervalClientCount;
+    stats.intervalErrorCount += workerStats.intervalErrorCount;
+    stats.intervalMessageCount += workerStats.intervalMessageCount;
+    stats.intervalUpdates += 1;
+    if (stats.intervalUpdates === Object.keys(cluster.workers).length) {
+      module.exports.sendToStackdriver(Object.assign({}, stats));
+      stats = Object.assign(stats, resetIntervalStats());
+    }
+  },
+  sendToStackdriver(sdStats) {
+    sd.createTimeSeriesEntry("stats/total/clients", sdStats.totalClientCount);
+    sd.createTimeSeriesEntry("stats/interval/clients", sdStats.intervalClientCount);
+    sd.createTimeSeriesEntry("stats/interval/errors", sdStats.intervalErrorCount);
+    sd.createTimeSeriesEntry("stats/interval/messages", sdStats.intervalMessageCount);
   }
-}
+};

@@ -28,9 +28,9 @@ function runTests() {
   });
 
   let runner = mocha.run((failCount)=>{
-    stackDriver.createTimeSeriesEntry("passcount", runner.total - failCount);
+    stackDriver.createTimeSeriesEntry("e2eruns/passcount", runner.total - failCount);
     if (failCount) {
-      stackDriver.createTimeSeriesEntry("failcount", failCount);
+      stackDriver.createTimeSeriesEntry("e2eruns/failcount", failCount);
       restartTesting(hibernateTimeMS)
     }
   });

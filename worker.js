@@ -23,28 +23,34 @@ function startPrimus(server) {
 
 function registerClientEvents(primus) {
   process.on("message", (message)=>{
-    if (!(sparksById[message.displayId] || sparksById[message.clientId])) {
+    if (message.msg && !(sparksById[message.displayId] || sparksById[message.clientId])) {
       console.error(`Worker received ${JSON.stringify(message)} for an id it does not handle`);
     }
     else if (message.msg === "presence-result") {
       sparksById[message.clientId].write(message);
     }
     else if (message.msg === "screenshot-request") {
-      stats.incrementCount("sentMessages");
+      stats.incrementCount("intervalMessageCount");
       sparksById[message.displayId].write(message);
     }
     else if (message.msg === "screenshot-saved" || message.msg === "screenshot-failed") {
-      stats.incrementCount("sentMessages");
+      stats.incrementCount("intervalMessageCount");
       sparksById[message.clientId].write(message);
     }
     else if (message.msg === "restart-request" || message.msg === "reboot-request") {
-      stats.incrementCount("sentMessages");
+      stats.incrementCount("intervalMessageCount");
       sparksById[message.displayId].write(message);
     }
     else if (message.msg === "duplicate-display-id") {
+      stats.incrementCount("intervalMessageCount");
       sparksById[message.displayId].write(message);
       delete sparksById[message.displayId];
     }
+  });
+
+  primus.on("error", (err)=>{
+    console.error('Something horrible has happened', err.stack);
+    stats.incrementCount("intervalErrorCount");
   });
 
   primus.on("connection", function(spark) {
@@ -52,8 +58,7 @@ function registerClientEvents(primus) {
 
     if (displayId && sparksById[displayId]) {sparksById[displayId].write({"msg": "duplicate-display-id"});}
 
-    stats.incrementCount("clients");
-    stats.incrementCount("newClients");
+    stats.incrementCount("intervalClientCount");
     sparksById[displayId || spark.id] = spark;
     if (displayId) {displaysBySpark[spark.id] = displayId;}
 
@@ -61,8 +66,7 @@ function registerClientEvents(primus) {
     if (!displayId) {spark.write({"msg": "client-connected", "clientId": spark.id});}
 
     spark.on("end", function() {
-      stats.decrementCount("clients");
-      stats.incrementCount("disconnectedClients");
+      stats.decrementCount("intervalClientCount");
 
       let displayId = displaysBySpark[spark.id];
 
