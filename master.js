@@ -1,6 +1,5 @@
 const cluster = require("cluster");
 const koa = require("koa");
-const stats = require("./stats.js");
 let koaApp = koa();
 let idsByWorker = {};
 
@@ -42,9 +41,6 @@ module.exports = {
       }
       else if(message.disconnection) {
         delete idsByWorker[worker.id][message.disconnection.id];
-      }
-      else if(message.stats) {
-        stats.updateFromWorker(message.stats);
       }
       else if (message.msg === "screenshot-saved" || message.msg === "screenshot-failed") {
         let destWorkerId = findWorkerFor(message.clientId);
