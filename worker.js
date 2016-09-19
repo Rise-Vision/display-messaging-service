@@ -29,7 +29,7 @@ function registerClientEvents(primus) {
     else if (message.msg === "presence-result") {
       sparksById[message.clientId].write(message);
     }
-    else if (message.msg === "content_update") {
+    else if (message.msg === "content-update") {
       stats.incrementCount("intervalMessageCount");
       sparksById[message.displayId].write(message);
     }

@@ -18,7 +18,7 @@ describe("Content update", function() {
     return new Promise((res)=>{
       fakeDisplay.on("open", ()=>{
         fakeDisplay.on("data", (data)=>{
-          if (data.msg === "content_update" && data.displayId === displayId) {
+          if (data.msg === "content-update" && data.displayId === displayId) {
             fakeDisplay.end();
             res();
           }

@@ -75,7 +75,7 @@ function findWorkerFor(id) {
 }
 
 function setupRequestHandler(serverKey) {
-  var handlers = [ createForwardHandler("content_update"),
+  var handlers = [ createForwardHandler("content_update", "content-update"),
                    createForwardHandler("reboot", "reboot-request"),
                    createForwardHandler("restart", "restart-request"),
                    createScreenshotHandler() ];
