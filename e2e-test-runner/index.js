@@ -10,6 +10,7 @@ testFiles = [
 
 let runningIntervalHandle;
 
+createLongStandingConnection();
 restartTesting();
 
 function restartTesting(delayMS = 0) {
@@ -34,4 +35,10 @@ function runTests() {
       restartTesting(hibernateTimeMS)
     }
   });
+}
+
+function createLongStandingConnection() {
+  let child = fork(path.join(__dirname, "..", "test", "e2e", "long-connection.js"), [], {stdio: "inherit"});
+  child.unref();
+  child.disconnect();
 }
