@@ -1,4 +1,5 @@
 const path = require("path"),
+fork = require("child_process").fork,
 hibernateTimeMS = 1000 * 60 * 60,
 everyFiveMinutesMS = 1000 * 60 * 5,
 stackDriver = require("./stack-driver.js"),
