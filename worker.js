@@ -47,7 +47,10 @@ function registerClientEvents(primus) {
     }
     else if (message.msg === "duplicate-display-id") {
       stats.incrementCount("intervalMessageCount");
+
       sparksById[message.displayId].write(message);
+
+      delete displaysBySpark[sparksById[message.displayId].id];
       delete sparksById[message.displayId];
     }
   });
@@ -59,14 +62,21 @@ function registerClientEvents(primus) {
 
   primus.on("connection", function(spark) {
     let displayId = spark.query.displayId || spark.query.displayID || spark.query.displayid;
-
-    if (displayId && sparksById[displayId]) {sparksById[displayId].write({"msg": "duplicate-display-id"});}
+    let machineId = spark.query.machineId;
 
     stats.incrementCount("intervalClientCount");
+
+    if (displayId && sparksById[displayId]) {
+      delete displaysBySpark[sparksById[displayId].id];
+      sparksById[displayId].write({"msg": "duplicate-display-id", machineId});
+    }
+
     sparksById[displayId || spark.id] = spark;
+
     if (displayId) {displaysBySpark[spark.id] = displayId;}
 
-    process.send({ connection: { id: displayId || spark.id }});
+    process.send({ connection: { id: displayId || spark.id, machineId }});
+
     if (!displayId) {spark.write({"msg": "client-connected", "clientId": spark.id});}
 
     spark.on("end", function() {
