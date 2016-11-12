@@ -5,8 +5,11 @@ let sparksById = {};
 let displaysBySpark = {};
 
 module.exports = {
-  setup(server) {
-    registerClientEvents(startPrimus(server));
+  setup(server443, server3000) {
+    registerIPC();
+    // Reversed order to have the generated primus.js use 443 port
+    registerClientEvents(startPrimus(server3000));
+    registerClientEvents(startPrimus(server443));
   }
 };
 
@@ -21,7 +24,7 @@ function startPrimus(server) {
   return primus;
 }
 
-function registerClientEvents(primus) {
+function registerIPC() {
   process.on("message", (message)=>{
     if (message.msg && !(sparksById[message.displayId] || sparksById[message.clientId])) {
       console.error(`Worker received ${JSON.stringify(message)} for an id it does not handle`);
@@ -54,7 +57,9 @@ function registerClientEvents(primus) {
       delete sparksById[message.displayId];
     }
   });
+}
 
+function registerClientEvents(primus) {
   primus.on("error", (err)=>{
     console.error('Something horrible has happened', err.stack);
     stats.incrementCount("intervalErrorCount");
