@@ -2,8 +2,8 @@ const assert = require("assert"),
       request = require("request"),
       serverKey = process.env.SERVERKEY,
       baseUrl = process.env.SERVER_URL || "https://display-messaging.risevision.com",
-      serverUrl = baseUrl + ":3001",
-      clientUrl = baseUrl + ":3000",
+      serverUrl = baseUrl + ":" + (process.env.TRUSTED_PORT || "3001"),
+      clientUrl = baseUrl + ":" + (process.env.INSECURE_PORT || "443"),
       wsClient = require("../ws-client.js");
 
 describe("Reboot", function() {

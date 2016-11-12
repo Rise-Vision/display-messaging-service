@@ -1,7 +1,8 @@
 const assert = require("assert"),
-browserUrl = "https://display-messaging.risevision.com:3000/",
+baseUrl = process.env.SERVER_URL || "https://display-messaging.risevision.com",
+clientUrl = baseUrl + ":" + (process.env.INSECURE_PORT || "443"),
 displayId = "E2EPRES"+Math.random(),
-displayUrl = "https://display-messaging.risevision.com:3000/?displayId=" + displayId,
+displayUrl = clientUrl + "/?displayId=" + displayId,
 wsClient = require("../ws-client.js");
 
 describe("Presence", function() {
@@ -9,7 +10,7 @@ describe("Presence", function() {
   let fakeDisplay = wsClient.createClient(displayUrl, false);
   let fakeDisplayReady;
   let fakeDisplayPromise = new Promise((res)=>{fakeDisplayReady = res;});
-  let fakeBrowser = wsClient.createClient(browserUrl, false);
+  let fakeBrowser = wsClient.createClient(clientUrl, false);
   let presenceResult;
   let presencePromise = new Promise((res)=>{presenceResult = res;});
 
