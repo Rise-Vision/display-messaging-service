@@ -8,7 +8,7 @@ let workerCount = require("os").cpus().length * workersPerCpu;
 let argv = require("yargs")
 .default({
   address: "0.0.0.0",
-  insecureListenerPort: 3000,
+  insecureListenerPort: 443,
   workers: workerCount,
   trustedSenderPort: 3001,
   nossl: false,
