@@ -51,9 +51,11 @@ module.exports = {
     }
   },
   sendToStackdriver(sdStats) {
-    sd.createTimeSeriesEntry("stats/total/clients", sdStats.totalClientCount);
-    sd.createTimeSeriesEntry("stats/interval/clients", sdStats.intervalClientCount);
-    sd.createTimeSeriesEntry("stats/interval/errors", sdStats.intervalErrorCount);
-    sd.createTimeSeriesEntry("stats/interval/messages", sdStats.intervalMessageCount);
+    if(process.env.STAGING_MESSAGING !== "true") {
+      sd.createTimeSeriesEntry("stats/total/clients", sdStats.totalClientCount);
+      sd.createTimeSeriesEntry("stats/interval/clients", sdStats.intervalClientCount);
+      sd.createTimeSeriesEntry("stats/interval/errors", sdStats.intervalErrorCount);
+      sd.createTimeSeriesEntry("stats/interval/messages", sdStats.intervalMessageCount);
+    }
   }
 };
