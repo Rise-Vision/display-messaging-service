@@ -5,11 +5,12 @@ let sparksById = {};
 let displaysBySpark = {};
 
 module.exports = {
-  setup(server443, server3000) {
+  setup(servers) {
     registerIPC();
-    // Reversed order to have the generated primus.js use 443 port
-    registerClientEvents(startPrimus(server3000));
-    registerClientEvents(startPrimus(server443));
+
+    servers.forEach((server)=>{
+      registerClientEvents(startPrimus(server));
+    });
   }
 };
 

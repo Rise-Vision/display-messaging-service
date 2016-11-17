@@ -40,7 +40,7 @@ if(cluster.isMaster) {
   var server443 = createServer();
   var server3000 = createServer();
 
-  require("./worker.js").setup(server443, server3000);
+  require("./worker.js").setup([server443, server3000]);
   require("./stats.js").forWorkers();
 
   startServer(server443, 443);
