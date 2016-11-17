@@ -8,7 +8,7 @@ describe("Echo display message", function() {
   let server;
 
   function startServer(workers) {
-    server = fork("./server.js", ["--nossl", "--workers=" + workers, "--serverkey=ABC", "--insecureListenerPort=3000"]);
+    server = fork("./server.js", ["--nossl", "--workers=" + workers, "--serverkey=ABC", "--untrustedListenerPort=3000"]);
     return new Promise((res)=>{
       setTimeout(res, 500);
     });
