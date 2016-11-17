@@ -7,7 +7,7 @@ describe("Presence", function() {
   let server;
 
   beforeEach("start server", ()=>{
-    server = fork("./server.js", ["--nossl", "--workers=1", "--serverkey=ABC"]);
+    server = fork("./server.js", ["--nossl", "--workers=1", "--serverkey=ABC", "--untrustedListenerPort=3000"]);
     return new Promise((res)=>{
       setTimeout(res, 500);
     });

@@ -8,7 +8,7 @@ let workerCount = require("os").cpus().length * workersPerCpu;
 let argv = require("yargs")
 .default({
   address: "0.0.0.0",
-  insecureListenerPort: 3000,
+  untrustedListenerPort: 443,
   workers: workerCount,
   trustedSenderPort: 3001,
   nossl: false,
@@ -16,24 +16,33 @@ let argv = require("yargs")
 })
 .argv;
 
-let handler = cluster.isMaster ? require("./master.js").requestListener() : require("./worker.js").requestListener;
+function createServer() {
+  let handler = cluster.isMaster ? require("./master.js").requestListener() : require("./worker.js").requestListener;
 
-let server = argv.nossl ? http.createServer(handler) : https.createServer({
-  key: fs.readFileSync("server.key"),
-  cert: fs.readFileSync("server.crt"),
-  ca: fs.readFileSync("ca.crt")
-}, handler);
+  return argv.nossl ? http.createServer(handler) : https.createServer({
+    key: fs.readFileSync("server.key"),
+    cert: fs.readFileSync("server.crt"),
+    ca: fs.readFileSync("ca.crt")
+  }, handler);
+}
 
-function startServer(port = argv.insecureListenerPort) {
+function startServer(server, port = argv.untrustedListenerPort) {
   server.listen(port, argv.address);
 }
 
 if(cluster.isMaster) {
+  var server = createServer();
+
   require("./master.js").setup(server, argv, cluster);
   require("./stats.js").forMaster();
-  startServer(argv.trustedSenderPort);
+  startServer(server, argv.trustedSenderPort);
 } else {
-  require("./worker.js").setup(server);
+  var server443 = createServer();
+  var server3000 = createServer();
+
+  require("./worker.js").setup([server443, server3000]);
   require("./stats.js").forWorkers();
-  startServer();
+
+  startServer(server443, 443);
+  startServer(server3000, 3000);
 }

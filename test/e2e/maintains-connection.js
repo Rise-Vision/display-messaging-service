@@ -1,7 +1,8 @@
 const assert = require("assert"),
 path = require("path"),
 fork = require("child_process").fork,
-browserUrl = "https://display-messaging.risevision.com:3000/",
+baseUrl = process.env.SERVER_URL || "https://display-messaging.risevision.com",
+clientUrl = baseUrl + ":" + (process.env.UNTRUSTED_PORT || "443"),
 displayId = "E2ELONGCONNECTION",
 wsClient = require("../ws-client.js");
 
@@ -16,7 +17,7 @@ describe("Long Connection", function() {
 
 
 function checkLongStandingConnection() {
-  let fakeBrowser = wsClient.createClient(browserUrl);
+  let fakeBrowser = wsClient.createClient(clientUrl);
   return new Promise((res, rej)=>{
     fakeBrowser.on("data", function(data) {
       if (data.msg === "client-connected") {
@@ -25,7 +26,7 @@ function checkLongStandingConnection() {
       if (data.msg === "presence-result") {
         fakeBrowser.end();
 
-        if (data.result.some((el)=>{return el[displayId]})) {
+        if (data.result.some((el)=>{return el[displayId];})) {
           res();
         } else {
           rej();
