@@ -31,8 +31,9 @@ function runTests() {
 
   let runner = mocha.run((failCount)=>{
     stackDriver.createTimeSeriesEntry("e2eruns/passcount", runner.total - failCount);
+    stackDriver.createTimeSeriesEntry("e2eruns/failcount", failCount);
+
     if (failCount) {
-      stackDriver.createTimeSeriesEntry("e2eruns/failcount", failCount);
       restartTesting(hibernateTimeMS)
     }
   });
