@@ -2,7 +2,7 @@ const assert = require("assert"),
 path = require("path"),
 fork = require("child_process").fork,
 baseUrl = process.env.SERVER_URL || "https://display-messaging.risevision.com",
-clientUrl = baseUrl + ":" + (process.env.INSECURE_PORT || "443"),
+clientUrl = baseUrl + ":" + (process.env.UNTRUSTED_PORT || "443"),
 displayId = "E2ELONGCONNECTION",
 wsClient = require("../ws-client.js");
 

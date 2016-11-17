@@ -1,6 +1,6 @@
 const displayId = "E2ELONGCONNECTION",
       baseUrl = process.env.SERVER_URL || "https://display-messaging.risevision.com",
-      clientUrl = baseUrl + ":" + (process.env.INSECURE_PORT || "443"),
+      clientUrl = baseUrl + ":" + (process.env.UNTRUSTED_PORT || "443"),
       displayUrl = clientUrl + "/?displayId=" + displayId,
       wsClient = require("../ws-client.js");
 

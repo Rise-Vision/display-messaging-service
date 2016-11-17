@@ -3,7 +3,7 @@ const assert = require("assert"),
       serverKey = process.env.SERVERKEY,
       baseUrl = process.env.SERVER_URL || "https://display-messaging.risevision.com",
       serverUrl = baseUrl + ":" + (process.env.TRUSTED_PORT || "3001"),
-      clientUrl = baseUrl + ":" + (process.env.INSECURE_PORT || "443"),
+      clientUrl = baseUrl + ":" + (process.env.UNTRUSTED_PORT || "443"),
       wsClient = require("../ws-client.js");
 
 describe("HTTP server", function() {
