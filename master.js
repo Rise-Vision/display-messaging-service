@@ -1,10 +1,18 @@
 const cluster = require("cluster");
 const koa = require("koa");
+const dataStore = require("./data-store");
+
 let koaApp = koa();
 let clientsById = {}; // { id, workerId, machineId, lastConnectionTime }
 
 module.exports = {
   setup(server, argv, cluster) {
+    startupDataStore()
+      .then(() => {
+        module.exports.setupCluster(server, argv, cluster);
+      });
+  },
+  setupCluster(server, argv, cluster) {
     let numWorkers = argv.workers;
 
     console.log("Master cluster setting up " + numWorkers + " workers...");
@@ -20,13 +28,17 @@ module.exports = {
     cluster.on("exit", function(worker, code, signal) {
       console.log("Worker " + worker.process.pid + " died with code: " + code + ", and signal: " + signal);
 
-      Object.keys(clientsById)
-        .map(id => clientsById[id])
-        .filter(client => client.workerId === worker.id)
-        .map(client => {
-          client.workerId = null;
-          client.lastConnectionTime = Date.now();
-        });
+      let lastConnectionTime = Date.now();
+      let clients = Object.keys(clientsById)
+            .map(id => clientsById[id])
+            .filter(client => client.workerId === worker.id);
+
+      clients.map(client => {
+        client.workerId = null;
+        client.lastConnectionTime = lastConnectionTime;
+      });
+
+      dataStore.registerDisconnection(clients.map(client => client.id), lastConnectionTime);
 
       let newWorker = cluster.fork();
       console.log("Starting a new worker " + newWorker.process.pid);
@@ -55,6 +67,8 @@ module.exports = {
         display.workerId = worker.id;
         display.machineId = machineId;
         display.lastConnectionTime = Date.now();
+
+        dataStore.registerConnection([displayId], display.lastConnectionTime);
       }
       else if(message.disconnection) {
         let displayId = message.disconnection.id;
@@ -63,6 +77,8 @@ module.exports = {
         if(displayId) {
           display.workerId = null;
           display.lastConnectionTime = Date.now();
+
+          dataStore.registerDisconnection([displayId], display.lastConnectionTime);
         }
       }
       else if (message.msg === "screenshot-saved" || message.msg === "screenshot-failed") {
@@ -81,9 +97,9 @@ module.exports = {
           clientId: message.clientId,
           result: message.displayIds.map((id)=>{
             let display = clientsById[id];
-            let response = { [id]: !!display.workerId };
+            let response = { [id]: display && !!display.workerId };
 
-            if(display.workerId) {
+            if(display && display.workerId) {
               response.lastConnectionTime = Date.now();
             }
 
@@ -99,6 +115,17 @@ module.exports = {
     return koaApp.callback();
   }
 };
+
+function startupDataStore() {
+  return dataStore.init()
+    .then(dataStore.getDisplays)
+    .then(displays => {
+      clientsById = displays.reduce((prev, next) => {
+        prev[next.id] = next;
+        return prev;
+      }, {});
+    });
+}
 
 function findWorkerFor(id) {
   return clientsById[id] && clientsById[id].workerId;
