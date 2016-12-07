@@ -13,7 +13,8 @@
     "request": "2.74.0",
     "uws": "^0.8.0",
     "ws": "^1.1.1",
-    "yargs": "^4.7.1"
+    "yargs": "^4.7.1",
+    "redis": "2.6.3"
   },
   "scripts": {
     "integration": "npm install && mocha test/integration/presence.js && mocha test/integration/dupe-id.js",
