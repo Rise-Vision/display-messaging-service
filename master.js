@@ -102,6 +102,9 @@ module.exports = {
             if(display && display.workerId) {
               response.lastConnectionTime = Date.now();
             }
+            else if(display) {
+              response.lastConnectionTime = display.lastConnectionTime;
+            }
 
             return response;
           })
