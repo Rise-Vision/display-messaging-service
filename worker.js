@@ -108,6 +108,9 @@ function registerClientEvents(primus) {
           process.send(data);
         }
       }
+      else {
+        spark.write({ error: "Invalid message request" });
+      }
     });
   });
 }
