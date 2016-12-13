@@ -39,7 +39,7 @@ describe("Presence", function() {
       return presencePromise;
     })
     .then((res)=>{
-      assert(res.some((el)=>{return el[displayId];}));
+      assert(res.some((el)=>{return el[displayId] && !isNaN(el.lastConnectionTime);}));
     });
   });
 });
