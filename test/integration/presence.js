@@ -35,7 +35,7 @@ describe("Presence", function() {
           console.log(data);
           fakeDisplay.end();
           fakeBrowser.end();
-          if (data.result.some((el)=>{return el["12345"]})) {res();}
+          if (data.result.some((el)=>{return el["12345"] && !isNaN(el.lastConnectionTime);})) {res();}
         }
       });
     });
