@@ -4,7 +4,9 @@ const utils = require("./utils");
 let client = null;
 
 function isValidDisplayId(displayId) {
-  return displayId.indexOf(".") === -1;
+  return displayId &&
+    displayId.indexOf(".") === -1 &&
+    (displayId.length === 12 || displayId.length === 36);
 }
 
 module.exports = {
@@ -61,7 +63,7 @@ module.exports = {
     displayIds
       .filter(displayId => isValidDisplayId(displayId))
       .forEach(displayId => {
-      multi.set(`displays:${displayId}:lastConnectionTime`, String(time));
+        multi.set(`displays:${displayId}:lastConnectionTime`, String(time));
     });
 
     multi.exec();
