@@ -3,6 +3,10 @@ const utils = require("./utils");
 
 let client = null;
 
+function isValidDisplayId(displayId) {
+  return displayId.indexOf(".") === -1;
+}
+
 module.exports = {
   init() {
     return new Promise((res)=>{
@@ -39,10 +43,12 @@ module.exports = {
     let multi = client.multi();
     let date = new Date().toISOString().substring(0, 10);
 
-    displayIds.forEach(displayId => {
-      multi.sadd("displays", displayId);
-      multi.set(`displays:${displayId}:lastConnectionTime`, String(time));
-      multi.incr(`displays:${displayId}:connections:${date}`);
+    displayIds
+      .filter(displayId => isValidDisplayId(displayId))
+      .forEach(displayId => {
+        multi.sadd("displays", displayId);
+        multi.set(`displays:${displayId}:lastConnectionTime`, String(time));
+        multi.incr(`displays:${displayId}:connections:${date}`);
     });
 
     multi.exec();
@@ -52,7 +58,9 @@ module.exports = {
 
     time = time || Date.now();
 
-    displayIds.forEach(displayId => {
+    displayIds
+      .filter(displayId => isValidDisplayId(displayId))
+      .forEach(displayId => {
       multi.set(`displays:${displayId}:lastConnectionTime`, String(time));
     });
 
