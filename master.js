@@ -74,7 +74,7 @@ module.exports = {
         let displayId = message.disconnection.id;
         let display = clientsById[displayId];
 
-        if(displayId) {
+        if(display) {
           display.workerId = null;
           display.lastConnectionTime = Date.now();
 
