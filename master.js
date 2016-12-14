@@ -1,10 +1,18 @@
 const cluster = require("cluster");
 const koa = require("koa");
+const dataStore = require("./data-store");
+
 let koaApp = koa();
-let idsByWorker = {};
+let clientsById = {}; // { id, workerId, machineId, lastConnectionTime }
 
 module.exports = {
   setup(server, argv, cluster) {
+    startupDataStore()
+      .then(() => {
+        module.exports.setupCluster(server, argv, cluster);
+      });
+  },
+  setupCluster(server, argv, cluster) {
     let numWorkers = argv.workers;
 
     console.log("Master cluster setting up " + numWorkers + " workers...");
@@ -15,14 +23,22 @@ module.exports = {
 
     cluster.on("online", function(worker) {
       console.log("Worker " + worker.process.pid + " is online");
-
-      idsByWorker[worker.id] = {};
     });
 
     cluster.on("exit", function(worker, code, signal) {
       console.log("Worker " + worker.process.pid + " died with code: " + code + ", and signal: " + signal);
 
-      delete idsByWorker[worker.id];
+      let lastConnectionTime = Date.now();
+      let clients = Object.keys(clientsById)
+            .map(id => clientsById[id])
+            .filter(client => client.workerId === worker.id);
+
+      clients.map(client => {
+        client.workerId = null;
+        client.lastConnectionTime = lastConnectionTime;
+      });
+
+      dataStore.registerDisconnection(clients.map(client => client.id), lastConnectionTime);
 
       let newWorker = cluster.fork();
       console.log("Starting a new worker " + newWorker.process.pid);
@@ -30,21 +46,40 @@ module.exports = {
 
     cluster.on("message", (worker, message)=>{
       if(message.connection) {
-        let dupeIdWorker = findWorkerFor(message.connection.id);
-        if (dupeIdWorker && dupeIdWorker !== String(worker.id)) {
-          console.log(`sending duplicate id message for ${message.connection.id} to worker ${worker.id}`);
-          delete idsByWorker[dupeIdWorker][message.connection.id];
-          cluster.workers[dupeIdWorker].send({
+        let displayId = message.connection.id;
+        let machineId = message.connection.machineId;
+        let display = clientsById[displayId];
+
+        if(!display) {
+          display = clientsById[displayId] = {};
+        }
+
+        if (display.workerId && display.workerId !== String(worker.id)) {
+          console.log(`sending duplicate id message for ${displayId} to worker ${worker.id}`);
+          cluster.workers[display.workerId].send({
             "msg": "duplicate-display-id",
-            "displayId": message.connection.id,
-            "machineId": message.connection.machineId
+            "displayId": displayId,
+            "machineId": machineId
           });
         }
 
-        idsByWorker[worker.id][message.connection.id] = true;
+        display.id = displayId;
+        display.workerId = worker.id;
+        display.machineId = machineId;
+        display.lastConnectionTime = Date.now();
+
+        dataStore.registerConnection([displayId], display.lastConnectionTime);
       }
       else if(message.disconnection) {
-        delete idsByWorker[worker.id][message.disconnection.id];
+        let displayId = message.disconnection.id;
+        let display = clientsById[displayId];
+
+        if(displayId) {
+          display.workerId = null;
+          display.lastConnectionTime = Date.now();
+
+          dataStore.registerDisconnection([displayId], display.lastConnectionTime);
+        }
       }
       else if (message.msg === "screenshot-saved" || message.msg === "screenshot-failed") {
         let destWorkerId = findWorkerFor(message.clientId);
@@ -58,9 +93,21 @@ module.exports = {
       }
       else if (message.msg === "presence-request") {
         worker.send({
-          result: message.displayIds.map((id)=>{return {[id]: Boolean(findWorkerFor(id))};}),
           msg: "presence-result",
-          clientId: message.clientId
+          clientId: message.clientId,
+          result: message.displayIds.map((id)=>{
+            let display = clientsById[id];
+            let response = { [id]: display && !!display.workerId };
+
+            if(display && display.workerId) {
+              response.lastConnectionTime = Date.now();
+            }
+            else if(display && !isNaN(display.lastConnectionTime)) {
+              response.lastConnectionTime = Number(display.lastConnectionTime);
+            }
+
+            return response;
+          })
         });
       }
     });
@@ -72,10 +119,19 @@ module.exports = {
   }
 };
 
+function startupDataStore() {
+  return dataStore.init()
+    .then(dataStore.getDisplays)
+    .then(displays => {
+      clientsById = displays.reduce((prev, next) => {
+        prev[next.id] = next;
+        return prev;
+      }, {});
+    });
+}
+
 function findWorkerFor(id) {
-  return Object.keys(idsByWorker).find((workerId)=>{
-    return idsByWorker[workerId][id];
-  });
+  return clientsById[id] && clientsById[id].workerId;
 }
 
 function setupRequestHandler(serverKey) {
@@ -107,7 +163,7 @@ function setupRequestHandler(serverKey) {
       let worker = findWorkerFor(params.did);
       let handler = handlers.find((handler)=>{ return handler.message === params.msg; });
 
-      if(worker === undefined) {
+      if(!worker) {
         this.status = 404;
         this.body = "Display id not found";
       }

@@ -13,10 +13,11 @@
     "request": "2.74.0",
     "uws": "^0.8.0",
     "ws": "^1.1.1",
-    "yargs": "^4.7.1"
+    "yargs": "^4.7.1",
+    "redis": "2.6.3"
   },
   "scripts": {
     "integration": "npm install && mocha test/integration/presence.js && mocha test/integration/dupe-id.js",
-    "e2e": "npm install && mocha test/e2e/http-server.js && mocha test/e2e/restart.js && mocha test/e2e/reboot.js && mocha test/e2e/screenshot.js"
+    "e2e": "npm install && mocha test/e2e/http-server.js && mocha test/e2e/restart.js && mocha test/e2e/reboot.js && mocha test/e2e/screenshot.js && mocha test/e2e/presence.js"
   }
 }
