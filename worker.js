@@ -31,28 +31,28 @@ function registerIPC() {
       console.error(`Worker received ${JSON.stringify(message)} for an id it does not handle`);
     }
     else if (message.msg === "presence-result") {
-      sparksById[message.clientId].write(message);
+      sparksById[message.clientId] && sparksById[message.clientId].write(message);
     }
     else if (message.msg === "content-update") {
       stats.incrementCount("intervalMessageCount");
-      sparksById[message.displayId].write(message);
+      sparksById[message.displayId] && sparksById[message.displayId].write(message);
     }
     else if (message.msg === "screenshot-request") {
       stats.incrementCount("intervalMessageCount");
-      sparksById[message.displayId].write(message);
+      sparksById[message.displayId] && sparksById[message.displayId].write(message);
     }
     else if (message.msg === "screenshot-saved" || message.msg === "screenshot-failed") {
       stats.incrementCount("intervalMessageCount");
-      sparksById[message.clientId].write(message);
+      sparksById[message.clientId] && sparksById[message.clientId].write(message);
     }
     else if (message.msg === "restart-request" || message.msg === "reboot-request") {
       stats.incrementCount("intervalMessageCount");
-      sparksById[message.displayId].write(message);
+      sparksById[message.displayId] && sparksById[message.displayId].write(message);
     }
     else if (message.msg === "duplicate-display-id") {
       stats.incrementCount("intervalMessageCount");
 
-      sparksById[message.displayId].write(message);
+      sparksById[message.displayId] && sparksById[message.displayId].write(message);
 
       delete displaysBySpark[sparksById[message.displayId].id];
       delete sparksById[message.displayId];
