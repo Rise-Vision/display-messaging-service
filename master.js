@@ -88,7 +88,7 @@ module.exports = {
           cluster.workers[destWorkerId].send(message);
         }
         else{
-          console.log("Destination clientId does not exist");
+          console.log(`Destination clientId ${message.clientId} does not exist`);
         }
       }
       else if (message.msg === "presence-request") {
