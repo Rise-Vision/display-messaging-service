@@ -54,7 +54,7 @@ module.exports = {
           display = clientsById[displayId] = {};
         }
 
-        if (display.workerId && display.workerId !== String(worker.id)) {
+        if (display.workerId && display.workerId !== worker.id) {
           console.log(`sending duplicate id message for ${displayId} to worker ${worker.id}`);
           cluster.workers[display.workerId].send({
             "msg": "duplicate-display-id",
@@ -88,7 +88,7 @@ module.exports = {
           cluster.workers[destWorkerId].send(message);
         }
         else{
-          console.log("Destination clientId does not exist");
+          console.log(`Destination clientId ${message.clientId} does not exist`);
         }
       }
       else if (message.msg === "presence-request") {
