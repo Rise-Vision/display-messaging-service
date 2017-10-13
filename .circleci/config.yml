@@ -1,0 +1,111 @@
+version: 2
+
+jobs:
+    setup_npm_deps:
+      docker:
+        - image: circleci/node:7.10
+      steps:
+        - checkout
+        - restore_cache:
+            key: node-cache-{{ checksum "package.json" }}
+        - run: npm install
+        - save_cache:
+            key: node-cache-{{ checksum "package.json" }}
+            paths:
+              - ./node_modules
+    test_integration:
+      docker:
+        - image: circleci/node:7.10
+          environment:
+            NODE_ENV: dev
+        - image: redis:3.2.11
+            command: redis-server
+      steps:
+        - checkout
+        - restore_cache:
+            key: node-cache-{{ checksum "package.json" }}
+        - run:
+            command: npm run integration
+            no_output_timeout: 1m
+    build:
+      working_directory: /app
+      docker:
+        - image: docker:17.10.0-ce-rc1
+          environment:
+            DOCKER_IMAGE_NAME: gcr.io/messaging-service-180514/display-messaging-service
+      steps:
+        - checkout
+        - setup_remote_docker
+        - restore_cache:
+            keys:
+              - v1-{{ .Branch }}
+            paths:
+              - /caches/$DOCKER_IMAGE_NAME:v$(grep version package.json |grep -o '[0-9.]*')
+        - run:
+            name: Load Docker image layer cache
+            command: |
+              set +o pipefail
+              docker load -i /caches/$DOCKER_IMAGE_NAME:v$(grep version package.json |grep -o '[0-9.]*').tar | true
+        - run:
+            name: Build application Docker image
+            command: |
+              docker build --cache-from=$DOCKER_IMAGE_NAME:v$(grep version package.json |grep -o '[0-9.]*') -t $DOCKER_IMAGE_NAME:v$(grep version package.json |grep -o '[0-9.]*') .
+        - run:
+            name: Save Docker image layer cache
+            command: |
+              mkdir -p /caches
+              docker save -o /caches/$DOCKER_IMAGE_NAME:v$(grep version package.json |grep -o '[0-9.]*').tar $DOCKER_IMAGE_NAME:v$(grep version package.json |grep -o '[0-9.]*')
+        - save_cache:
+            key: v1-{{ .Branch }}-{{ epoch }}
+            paths:
+              - /caches/$DOCKER_IMAGE_NAME:v$(grep version package.json |grep -o '[0-9.]*').tar
+    deploy_to_gke:
+      working_directory: /
+      docker:
+        - image: google/cloud-sdk
+          environment:
+            GOOGLE_PROJECT_ID: messaging-service-180514
+            GOOGLE_COMPUTE_ZONE: us-central1-a
+            DOCKER_IMAGE_NAME: gcr.io/messaging-service-180514/display-messaging-service
+            GOOGLE_CLUSTER_NAME_STAGE: messaging-service-stage
+            GOOGLE_CLUSTER_NAME_PROD: messaging-service-prod
+      steps:
+        - run:
+            name: Load Docker image layer cache
+            command: |
+              set +o pipefail
+              docker load -i /caches/$DOCKER_IMAGE_NAME:v$(grep version package.json |grep -o '[0-9.]*').tar | true
+        - run:
+            name: Setup gcloud
+            command: |
+              echo $GOOGLE_AUTH | base64 --decode -i > ${HOME}/gcp-key.json
+              gcloud auth activate-service-account --key-file ${HOME}/gcp-key.json
+              gcloud --quiet config set project ${GOOGLE_PROJECT_ID}
+              gcloud --quiet config set compute/zone ${GOOGLE_COMPUTE_ZONE}
+        - run:
+            name: Set cluster to prod or stage
+            command: |
+              if [ "${CIRCLE_BRANCH}" == *"feature"* -o "${CIRCLE_BRANCH}" == *"chore"* -o "${CIRCLE_BRANCH}" == *"fix"* ];
+                then gcloud --quiet container clusters get-credentials ${GOOGLE_CLUSTER_NAME_STAGE}
+                elif [ "${CIRCLE_BRANCH}" == *"master"* ]
+                then gcloud --quiet container clusters get-credentials ${GOOGLE_CLUSTER_NAME_PROD}
+              fi
+        - deploy:
+            command: |
+              gcloud docker -- push $DOCKER_IMAGE_NAME:v$(grep version package.json |grep -o '[0-9.]*')
+              kubectl patch deployment messaging-service -p '{"spec":{"template":{"spec":{"containers":[{"name":"messaging-service","image":"'"$DOCKER_IMAGE_NAME"':v'"$(grep version package.json |grep -o '[0-9.]*')"'"}]}}}}'
+workflows:
+  version: 2
+  workflow1:
+    jobs:
+      - setup_npm_deps
+      - test_integration:
+          requires:
+            - setup_npm_deps
+      - build:
+          requires:
+            - setup_npm_deps
+      - deploy_to_gke:
+          requires:
+            - test_integration
+            - build

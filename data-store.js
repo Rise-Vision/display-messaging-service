@@ -12,7 +12,8 @@ function isValidDisplayId(displayId) {
 module.exports = {
   init() {
     return new Promise((res)=>{
-      client = redis.createClient();
+      let host = (require("process").env.NODE_ENV === "dev") ? "127.0.0.1" : "display-ms-redis-master"
+      client = redis.createClient({host: host});
 
       client.on("error", (err)=>{
         console.log("Redis error", err);

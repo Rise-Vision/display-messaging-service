@@ -9,14 +9,15 @@
     "koa": "^1.2.1",
     "koa-bodyparser": "^2.2.0",
     "mocha": "^3.0.2",
-    "primus": "6.0.2",
+    "primus": "7.1.0",
+    "redis": "2.6.3",
     "request": "2.74.0",
-    "uws": "^0.8.0",
+    "uws": "^8.14.1",
     "ws": "^1.1.1",
-    "yargs": "^4.7.1",
-    "redis": "2.6.3"
+    "yargs": "^4.7.1"
   },
   "scripts": {
+    "start": "node server.js",
     "integration": "npm install && mocha test/integration/presence.js && mocha test/integration/dupe-id.js",
     "e2e": "npm install && mocha test/e2e/http-server.js && mocha test/e2e/restart.js && mocha test/e2e/reboot.js && mocha test/e2e/screenshot.js && mocha test/e2e/presence.js"
   }

@@ -154,8 +154,11 @@ function setupRequestHandler(serverKey) {
     if(params.sk != serverKey) {
       this.status = 403;
       this.body = "Invalid server key";
-    }
-    else if(!params.did) {
+    } else if(params.healthcheck){
+      this.status = 200;
+      this.body = "OK";
+      return
+    }else if(!params.did) {
       this.status = 400;
       this.body = "Display id is required";
     }
