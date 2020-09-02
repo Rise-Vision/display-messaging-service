@@ -5,7 +5,7 @@
   "description": "Node.js Primus/SockJS Server",
   "dependencies": {
     "forever-monitor": "1.5.2",
-    "googleapis": "^12.4.0",
+    "googleapis": "^59.0.0",
     "koa": "^1.2.1",
     "koa-bodyparser": "^2.2.0",
     "mocha": "^3.0.2",
